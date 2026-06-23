@@ -15,15 +15,27 @@ from routesanalysis.models import Device, BgpRoute, RouteProtocol
 
 class TestParallelGroupKey:
     def test_standard_format(self):
-        assert parallel_group_key("BJ-DC-SPINE-01-10.1.1.1") == "BJ-DC-SPINE-01"
+        # 第三段（型号）被忽略：保留 段1-段2-段4
+        assert parallel_group_key("BJ-DC-SPINE-01-10.1.1.1") == "BJ-DC-01"
 
     def test_two_devices_same_group(self):
         assert parallel_group_key("BJ-DC-SPINE-01-10.1.1.1") == \
                parallel_group_key("BJ-DC-SPINE-01-10.1.1.2")
 
-    def test_different_groups(self):
-        assert parallel_group_key("BJ-DC-SPINE-01-10.1.1.1") != \
+    def test_different_model_same_group(self):
+        """第三段（型号）不同也视为同组"""
+        assert parallel_group_key("BJ-DC-SPINE-01-10.1.1.1") == \
                parallel_group_key("BJ-DC-LEAF-01-10.1.2.1")
+
+    def test_different_region_different_group(self):
+        """第一段不同 → 不同组"""
+        assert parallel_group_key("BJ-DC-SPINE-01-10.1.1.1") != \
+               parallel_group_key("SH-DC-SPINE-01-10.1.1.1")
+
+    def test_different_serial_different_group(self):
+        """第四段（序号）不同 → 不同组"""
+        assert parallel_group_key("BJ-DC-SPINE-01-10.1.1.1") != \
+               parallel_group_key("BJ-DC-SPINE-02-10.1.1.2")
 
     def test_no_dash(self):
         assert parallel_group_key("UNKNOWN") == "UNKNOWN"
@@ -33,13 +45,18 @@ class TestParallelGroupKey:
 
     # ---- nc 例外规则 ----
     def test_nc_underscore_normalized(self):
-        """第二段 nc01_cnt01 → 保留 nc01_cnt，去掉 cnt 后的 01"""
-        assert parallel_group_key("BJ-nc01_cnt01-LEAF-01-10.1.1.1") == "BJ-nc01_cnt-LEAF-01"
+        """第二段 nc01_cnt01 → 保留 nc01_cnt，去掉 cnt 后的 01；型号也被忽略"""
+        assert parallel_group_key("BJ-nc01_cnt01-LEAF-01-10.1.1.1") == "BJ-nc01_cnt-01"
 
     def test_nc_underscore_same_group_different_cnt(self):
         """不同 cnt 但同 nc → 同组"""
         assert parallel_group_key("BJ-nc01_cnt01-LEAF-01-10.1.1.1") == \
                parallel_group_key("BJ-nc01_cnt02-LEAF-01-10.1.1.2")
+
+    def test_nc_underscore_same_group_different_model(self):
+        """同 nc，不同 cnt，不同型号 → 同组"""
+        assert parallel_group_key("BJ-nc01_cnt01-LEAF-01-10.1.1.1") == \
+               parallel_group_key("BJ-nc01_cnt02-SPINE-01-10.1.1.2")
 
     def test_nc_underscore_different_nc_different_group(self):
         """不同 nc → 不同组"""
@@ -48,25 +65,29 @@ class TestParallelGroupKey:
 
     def test_nc_case_insensitive(self):
         """NC / Nc / nc 都生效"""
-        assert parallel_group_key("BJ-NC01_CNT01-LEAF-01-10.1.1.1") == "BJ-NC01_CNT-LEAF-01"
-        assert parallel_group_key("BJ-Nc01_cnt01-LEAF-01-10.1.1.1") == "BJ-Nc01_cnt-LEAF-01"
+        assert parallel_group_key("BJ-NC01_CNT01-LEAF-01-10.1.1.1") == "BJ-NC01_CNT-01"
+        assert parallel_group_key("BJ-Nc01_cnt01-LEAF-01-10.1.1.1") == "BJ-Nc01_cnt-01"
 
     def test_non_nc_segment_not_affected(self):
-        """第二段不以 nc 开头 → 不变"""
-        assert parallel_group_key("BJ-abc_cnt01-LEAF-01-10.1.1.1") == "BJ-abc_cnt01-LEAF-01"
-        assert parallel_group_key("BJ-abc_xyz-LEAF-01-10.1.1.1") == "BJ-abc_xyz-LEAF-01"
+        """第二段不以 nc 开头 → 第二段不变（但型号仍被去掉）"""
+        assert parallel_group_key("BJ-abc_cnt01-LEAF-01-10.1.1.1") == "BJ-abc_cnt01-01"
+        assert parallel_group_key("BJ-abc_xyz-LEAF-01-10.1.1.1") == "BJ-abc_xyz-01"
 
     def test_nc_in_other_segment_not_affected(self):
-        """nc 出现在第三段→不变"""
-        assert parallel_group_key("BJ-DC-nc01_cnt01-01-10.1.1.1") == "BJ-DC-nc01_cnt01-01"
+        """nc 出现在第三段→nc 规则不生效；第三段会被忽略"""
+        assert parallel_group_key("BJ-DC-nc01_cnt01-01-10.1.1.1") == "BJ-DC-01"
 
     def test_nc_without_cnt_not_affected(self):
         """第二段是 nc01（无 _cnt）→ 不变"""
-        assert parallel_group_key("BJ-nc01-LEAF-01-10.1.1.1") == "BJ-nc01-LEAF-01"
+        assert parallel_group_key("BJ-nc01-LEAF-01-10.1.1.1") == "BJ-nc01-01"
 
     def test_nc_underscore_non_cnt_not_affected(self):
         """第二段是 nc01_xyz（不是 _cnt）→ 不变"""
-        assert parallel_group_key("BJ-nc01_xyz-LEAF-01-10.1.1.1") == "BJ-nc01_xyz-LEAF-01"
+        assert parallel_group_key("BJ-nc01_xyz-LEAF-01-10.1.1.1") == "BJ-nc01_xyz-01"
+
+    def test_short_name_without_4_segments(self):
+        """不足 4 段（去 IP 后），不应用型号删除"""
+        assert parallel_group_key("BJ-DC-LEAF-10.1.1.1") == "BJ-DC-LEAF"
 
 
 class TestWellFormed:
@@ -99,7 +120,7 @@ def _make_device(name: str, routes, peer_map) -> Device:
 class TestMultiGroupAnalyzer:
 
     def test_two_groups_hit(self):
-        """两组平行设备 → 命中"""
+        """两组平行设备（不同第一段）→ 命中"""
         device = _make_device(
             "ME",
             routes=[
@@ -108,7 +129,7 @@ class TestMultiGroupAnalyzer:
             ],
             peer_map={
                 "GE0/0/1": "BJ-DC-SPINE-01-10.1.1.1",
-                "GE0/0/2": "BJ-DC-LEAF-01-10.1.2.1",
+                "GE0/0/2": "SH-DC-LEAF-01-10.1.2.1",
             },
         )
         result = MultiGroupAnalyzer(min_groups=2).analyze(device)
@@ -116,10 +137,10 @@ class TestMultiGroupAnalyzer:
         hit = result.hits[0]
         assert hit.destination == "10.0.0.0/24"
         assert hit.group_count == 2
-        assert set(hit.group_keys) == {"BJ-DC-SPINE-01", "BJ-DC-LEAF-01"}
+        assert set(hit.group_keys) == {"BJ-DC-01", "SH-DC-01"}
 
     def test_same_group_no_hit(self):
-        """两条路径都到同一组平行设备 → 不命中"""
+        """两条路径都到同一组平行设备（同第一段、同第二段、同第四段）→ 不命中"""
         device = _make_device(
             "ME",
             routes=[
@@ -133,9 +154,8 @@ class TestMultiGroupAnalyzer:
         )
         result = MultiGroupAnalyzer(min_groups=2).analyze(device)
         assert result.hit_count == 0
-        # 但分组识别要正确
-        assert "BJ-DC-SPINE-01" in result.group_members
-        assert len(result.group_members["BJ-DC-SPINE-01"]) == 2
+        assert "BJ-DC-01" in result.group_members
+        assert len(result.group_members["BJ-DC-01"]) == 2
 
     def test_min_groups_3(self):
         """min_groups=3 时，2 组不命中、3 组命中"""

@@ -89,6 +89,7 @@ def export_multi_group_result(result: MultiGroupAnalysisResult, output_path: str
     wb = Workbook()
     _write_summary_sheet(wb, result)
     _write_hits_sheet(wb, result)
+    _write_all_routes_sheet(wb, result)
     _write_groups_sheet(wb, result)
 
     if "Sheet" in wb.sheetnames and wb["Sheet"].max_row == 1 and wb["Sheet"].max_column == 1 and wb["Sheet"].cell(1, 1).value is None:
@@ -160,6 +161,61 @@ def _write_hits_sheet(wb: Workbook, result: MultiGroupAnalysisResult):
 
         fill = _WARN_FILL if hit.has_unparseable_peer else _HIT_FILL
         _style_body_row(ws, i, len(headers), fill)
+
+    ws.freeze_panes = "A2"
+    _autosize(ws, max_width=70)
+
+
+def _write_all_routes_sheet(wb: Workbook, result: MultiGroupAnalysisResult):
+    """所有 Destination 及其对应的分组信息"""
+    ws = wb.create_sheet("所有路由")
+
+    headers = [
+        "Destination",
+        "路径数",
+        "涉及组数",
+        "涉及的平行设备组",
+        "是否命中",
+        "对端设备明细",
+        "接口明细",
+        "Pre",
+        "Cost",
+        "协议",
+    ]
+    for col, name in enumerate(headers, start=1):
+        ws.cell(row=1, column=col, value=name)
+    _style_header(ws, 1, len(headers))
+
+    # 构建命中索引
+    hit_destinations = {h.destination for h in result.hits}
+
+    row = 2
+    for dest, paths in result.all_destinations.items():
+        is_hit = dest in hit_destinations
+
+        # 计算分组
+        unique_groups = []
+        seen = set()
+        for p in paths:
+            if p.group_key not in seen:
+                seen.add(p.group_key)
+                unique_groups.append(p.group_key)
+        unique_groups.sort()
+
+        ws.cell(row=row, column=1, value=dest)
+        ws.cell(row=row, column=2, value=len(paths))
+        ws.cell(row=row, column=3, value=len(unique_groups))
+        ws.cell(row=row, column=4, value="\n".join(unique_groups))
+        ws.cell(row=row, column=5, value="是" if is_hit else "")
+        ws.cell(row=row, column=6, value="\n".join(f"{p.group_key} / {p.peer_device}" for p in paths))
+        ws.cell(row=row, column=7, value="\n".join(f"{p.peer_device} ← {p.interface}" for p in paths))
+        ws.cell(row=row, column=8, value=",".join(sorted({str(p.pre) for p in paths})))
+        ws.cell(row=row, column=9, value=",".join(sorted({str(p.cost) for p in paths})))
+        ws.cell(row=row, column=10, value=",".join(sorted({p.protocol for p in paths})))
+
+        fill = _HIT_FILL if is_hit else None
+        _style_body_row(ws, row, len(headers), fill)
+        row += 1
 
     ws.freeze_panes = "A2"
     _autosize(ws, max_width=70)

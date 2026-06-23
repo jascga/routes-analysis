@@ -25,24 +25,28 @@ def parallel_group_key(peer_name: str) -> str:
     """
     从对端设备名提取平行设备分组键。
 
-    规则：
-    1. 取最后一个 '-' 之前的全部字符串（去掉管理 IP 部分）
-    2. **例外**：若第二段以 `nc` 开头（大小写不敏感）且含 `_cnt`，
-       则去掉 `_cnt` 之后的所有字符，保留 `_cnt`。
-    3. 若设备名不含 '-'（不规范），返回设备名本身（方案 A）。
+    规则（设备名格式：aaaa-bbbb-cccc-dddd-管理IP）：
+    1. 去掉最后一个 '-' 之后的部分（管理 IP）
+    2. 去掉第三段（设备型号）：即仅保留第1、2、4段连成分组键
+    3. **例外**：若第二段以 `nc` 开头（如 `nc01_cnt01`）且含 `_cnt`，
+       则去掉 `_cnt` 之后的所有字符（保留 `_cnt`）。
+    4. 若设备名不含 '-' 或去 IP 后不足 3 段（不规范），
+       返回原始去 IP 后的字符串，不做型号删除。
 
     Examples
     --------
     >>> parallel_group_key("BJ-DC-SPINE-01-10.1.1.1")
-    'BJ-DC-SPINE-01'
+    'BJ-DC-01'
+    >>> parallel_group_key("BJ-DC-LEAF-01-10.1.1.2")
+    'BJ-DC-01'
     >>> parallel_group_key("BJ-nc01_cnt01-LEAF-01-10.1.1.1")
-    'BJ-nc01_cnt-LEAF-01'
-    >>> parallel_group_key("BJ-nc01_cnt02-LEAF-01-10.1.1.2")
-    'BJ-nc01_cnt-LEAF-01'
+    'BJ-nc01_cnt-01'
+    >>> parallel_group_key("BJ-nc01_cnt02-SPINE-01-10.1.1.2")
+    'BJ-nc01_cnt-01'
     >>> parallel_group_key("BJ-nc02_cnt01-LEAF-01-10.1.1.3")
-    'BJ-nc02_cnt-LEAF-01'
-    >>> parallel_group_key("BJ-abc_cnt01-LEAF-01-10.1.1.1")
-    'BJ-abc_cnt01-LEAF-01'
+    'BJ-nc02_cnt-01'
+    >>> parallel_group_key("BJ-DC-SPINE-01")
+    'BJ-DC-SPINE-01'
     >>> parallel_group_key("Eth-Trunk1")
     'Eth'
     >>> parallel_group_key("UNKNOWN")
@@ -55,18 +59,21 @@ def parallel_group_key(peer_name: str) -> str:
         return peer_name
     head = peer_name[:idx]
 
-    # 例外规则：仅对第二段生效，且需以 nc 开头且含 _cnt
     segments = head.split('-')
+
+    # 例外规则：仅对第二段生效，且需以 nc 开头且含 _cnt
     if len(segments) >= 2:
         seg2 = segments[1]
         if seg2.lower().startswith('nc'):
-            # 匹配 _cnt（大小写不敏感）后的任意字符，去掉后缀
             new_seg2 = re.sub(r'(_cnt).*$', r'\1', seg2, flags=re.IGNORECASE)
             if new_seg2 != seg2:
                 segments[1] = new_seg2
-                head = '-'.join(segments)
 
-    return head
+    # 去掉第三段（设备型号）：需要至少 4 段才有意义
+    if len(segments) >= 4:
+        segments = segments[:2] + segments[3:]
+
+    return '-'.join(segments)
 
 
 def is_well_formed_peer_name(peer_name: str) -> bool:
@@ -122,6 +129,8 @@ class MultiGroupAnalysisResult:
     total_destinations: int
     total_routes: int
     hits: List[MultiGroupHit]
+    # 所有 Destination → 路径列表（含未命中的）
+    all_destinations: Dict[str, List[PeerPath]] = field(default_factory=dict)
     # 分组键 -> 该组下出现过的对端设备名集合（用于核对分组）
     group_members: Dict[str, Set[str]] = field(default_factory=dict)
     # 警告：对端设备名不规范的对端集合
@@ -203,12 +212,16 @@ class MultiGroupAnalyzer:
         # 按 destination 排序，便于阅读
         hits.sort(key=lambda h: _ip_sort_key(h.destination))
 
+        # 构建 all_destinations（按 destination 排序）
+        all_destinations = dict(sorted(dest_to_paths.items(), key=lambda kv: _ip_sort_key(kv[0])))
+
         return MultiGroupAnalysisResult(
             device=device,
             min_groups=self.min_groups,
             total_destinations=len(dest_to_paths),
             total_routes=len(device.routes),
             hits=hits,
+            all_destinations=all_destinations,
             group_members=dict(group_members),
             unparseable_peers=unparseable_peers,
         )
