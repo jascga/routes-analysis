@@ -1,0 +1,25 @@
+[build-system]
+requires = ["setuptools>=64", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "routesanalysis"
+version = "0.1.0"
+description = "华为交换机 BGP 路由表多场景分析工具（场景 1：多组平行设备负载分担分析）"
+readme = "README.md"
+requires-python = ">=3.9"
+authors = [{ name = "jascga" }]
+dependencies = [
+    "click>=8.0",
+    "openpyxl>=3.1",
+    "chardet>=5.0",
+]
+
+[project.optional-dependencies]
+dev = ["pytest>=7.0", "pytest-cov>=4.0"]
+
+[project.scripts]
+routesanalysis = "routesanalysis.main:main"
+
+[tool.setuptools.packages.find]
+include = ["routesanalysis*"]

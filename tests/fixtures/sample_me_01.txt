@@ -1,0 +1,33 @@
+<BJ-CORE-ME-01-10.0.0.1>display interface description
+Interface                     PHY     Protocol Description
+GigabitEthernet0/0/1          up      up       to_BJ-DC-SPINE-01-10.1.1.1_GE0/0/1
+GigabitEthernet0/0/2          up      up       to_BJ-DC-SPINE-01-10.1.1.2_GE0/0/1
+GigabitEthernet0/0/3          up      up       to_BJ-DC-SPINE-02-10.1.1.3_GE0/0/1
+GigabitEthernet0/0/4          up      up       to_BJ-DC-LEAF-01-10.1.2.1_GE0/0/1
+GigabitEthernet0/0/5          up      up       to_BJ-DC-LEAF-01-10.1.2.2_GE0/0/1
+GigabitEthernet0/0/6          up      up       to_BJ-DC-LEAF-02-10.1.2.3_GE0/0/1
+Eth-Trunk1                    up      up       to_BJ-DC-SPINE-01-10.1.1.1_Eth-Trunk1
+Eth-Trunk2                    up      up       to_BJ-DC-SPINE-01-10.1.1.2_Eth-Trunk1
+
+<BJ-CORE-ME-01-10.0.0.1>display ip routing-table protocol bgp
+Route Flags: R - relay, D - download to fib
+------------------------------------------------------------------------------
+Public routing table : BGP
+         Destinations : 5        Routes : 11
+
+BGP routing table status : <Active>
+         Destinations : 5        Routes : 11
+
+Destination/Mask    Proto   Pre  Cost        Flags NextHop         Interface
+
+       10.10.0.0/24  BGP     60   0             RD  192.168.1.1     GigabitEthernet0/0/1
+                    BGP     60   0             RD  192.168.1.2     GigabitEthernet0/0/2
+       10.10.1.0/24  EBGP    20   0             RD  192.168.2.1     GigabitEthernet0/0/1
+                    EBGP    20   0             RD  192.168.2.4     GigabitEthernet0/0/4
+       10.10.2.0/24  IBGP   255   0             RD  192.168.3.1     GigabitEthernet0/0/1
+                    IBGP   255   0             RD  192.168.3.2     GigabitEthernet0/0/2
+                    IBGP   255   0             RD  192.168.3.4     GigabitEthernet0/0/4
+                    IBGP   255   0             RD  192.168.3.6     GigabitEthernet0/0/6
+       10.10.3.0/24  BGP     60   0             RD  192.168.4.1     Eth-Trunk1
+                    BGP     60   0             RD  192.168.4.2     Eth-Trunk2
+       10.10.4.0/24  BGP     60   100           RD  192.168.5.4     GigabitEthernet0/0/4
