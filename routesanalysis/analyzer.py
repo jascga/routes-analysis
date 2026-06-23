@@ -8,6 +8,8 @@
 
 from __future__ import annotations
 
+import re
+
 from dataclasses import dataclass, field
 from typing import Dict, List, Set, Tuple, Any
 from collections import defaultdict
@@ -23,16 +25,24 @@ def parallel_group_key(peer_name: str) -> str:
     """
     从对端设备名提取平行设备分组键。
 
-    规则：取最后一个 '-' 之前的全部字符串。
-    若设备名不含 '-'（不规范），按方案 A 处理：把它当独立组，
-    分组键就是设备名本身（保证不漏分析）。
+    规则：
+    1. 取最后一个 '-' 之前的全部字符串（去掉管理 IP 部分）
+    2. **例外**：若第二段以 `nc` 开头（大小写不敏感）且含 `_cnt`，
+       则去掉 `_cnt` 之后的所有字符，保留 `_cnt`。
+    3. 若设备名不含 '-'（不规范），返回设备名本身（方案 A）。
 
     Examples
     --------
     >>> parallel_group_key("BJ-DC-SPINE-01-10.1.1.1")
     'BJ-DC-SPINE-01'
-    >>> parallel_group_key("BJ-DC-SPINE-01-10.1.1.2")
-    'BJ-DC-SPINE-01'
+    >>> parallel_group_key("BJ-nc01_cnt01-LEAF-01-10.1.1.1")
+    'BJ-nc01_cnt-LEAF-01'
+    >>> parallel_group_key("BJ-nc01_cnt02-LEAF-01-10.1.1.2")
+    'BJ-nc01_cnt-LEAF-01'
+    >>> parallel_group_key("BJ-nc02_cnt01-LEAF-01-10.1.1.3")
+    'BJ-nc02_cnt-LEAF-01'
+    >>> parallel_group_key("BJ-abc_cnt01-LEAF-01-10.1.1.1")
+    'BJ-abc_cnt01-LEAF-01'
     >>> parallel_group_key("Eth-Trunk1")
     'Eth'
     >>> parallel_group_key("UNKNOWN")
@@ -43,7 +53,20 @@ def parallel_group_key(peer_name: str) -> str:
     idx = peer_name.rfind('-')
     if idx <= 0:  # 没有 '-' 或以 '-' 开头
         return peer_name
-    return peer_name[:idx]
+    head = peer_name[:idx]
+
+    # 例外规则：仅对第二段生效，且需以 nc 开头且含 _cnt
+    segments = head.split('-')
+    if len(segments) >= 2:
+        seg2 = segments[1]
+        if seg2.lower().startswith('nc'):
+            # 匹配 _cnt（大小写不敏感）后的任意字符，去掉后缀
+            new_seg2 = re.sub(r'(_cnt).*$', r'\1', seg2, flags=re.IGNORECASE)
+            if new_seg2 != seg2:
+                segments[1] = new_seg2
+                head = '-'.join(segments)
+
+    return head
 
 
 def is_well_formed_peer_name(peer_name: str) -> bool:

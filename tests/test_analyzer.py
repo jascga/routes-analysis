@@ -31,6 +31,43 @@ class TestParallelGroupKey:
     def test_empty(self):
         assert parallel_group_key("") == ""
 
+    # ---- nc 例外规则 ----
+    def test_nc_underscore_normalized(self):
+        """第二段 nc01_cnt01 → 保留 nc01_cnt，去掉 cnt 后的 01"""
+        assert parallel_group_key("BJ-nc01_cnt01-LEAF-01-10.1.1.1") == "BJ-nc01_cnt-LEAF-01"
+
+    def test_nc_underscore_same_group_different_cnt(self):
+        """不同 cnt 但同 nc → 同组"""
+        assert parallel_group_key("BJ-nc01_cnt01-LEAF-01-10.1.1.1") == \
+               parallel_group_key("BJ-nc01_cnt02-LEAF-01-10.1.1.2")
+
+    def test_nc_underscore_different_nc_different_group(self):
+        """不同 nc → 不同组"""
+        assert parallel_group_key("BJ-nc01_cnt01-LEAF-01-10.1.1.1") != \
+               parallel_group_key("BJ-nc02_cnt01-LEAF-01-10.1.1.3")
+
+    def test_nc_case_insensitive(self):
+        """NC / Nc / nc 都生效"""
+        assert parallel_group_key("BJ-NC01_CNT01-LEAF-01-10.1.1.1") == "BJ-NC01_CNT-LEAF-01"
+        assert parallel_group_key("BJ-Nc01_cnt01-LEAF-01-10.1.1.1") == "BJ-Nc01_cnt-LEAF-01"
+
+    def test_non_nc_segment_not_affected(self):
+        """第二段不以 nc 开头 → 不变"""
+        assert parallel_group_key("BJ-abc_cnt01-LEAF-01-10.1.1.1") == "BJ-abc_cnt01-LEAF-01"
+        assert parallel_group_key("BJ-abc_xyz-LEAF-01-10.1.1.1") == "BJ-abc_xyz-LEAF-01"
+
+    def test_nc_in_other_segment_not_affected(self):
+        """nc 出现在第三段→不变"""
+        assert parallel_group_key("BJ-DC-nc01_cnt01-01-10.1.1.1") == "BJ-DC-nc01_cnt01-01"
+
+    def test_nc_without_cnt_not_affected(self):
+        """第二段是 nc01（无 _cnt）→ 不变"""
+        assert parallel_group_key("BJ-nc01-LEAF-01-10.1.1.1") == "BJ-nc01-LEAF-01"
+
+    def test_nc_underscore_non_cnt_not_affected(self):
+        """第二段是 nc01_xyz（不是 _cnt）→ 不变"""
+        assert parallel_group_key("BJ-nc01_xyz-LEAF-01-10.1.1.1") == "BJ-nc01_xyz-LEAF-01"
+
 
 class TestWellFormed:
     def test_ok(self):
