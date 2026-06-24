@@ -13,6 +13,9 @@ from routesanalysis import __version__
 from routesanalysis.parser import parse_bgp_file
 from routesanalysis.analyzer import MultiGroupAnalyzer, MultiGroupAnalysisResult
 from routesanalysis.exporter import export_multi_group_result
+from routesanalysis.comparison import (
+    BgpRouteComparator, compare_bgp_files, ExcelExporter,
+)
 
 logger = logging.getLogger(__name__)
 
@@ -148,6 +151,119 @@ def inspect(filepath: str, encoding: str):
 
 def main():
     cli()
+
+
+# ---------------------------------------------------------------------------
+# 场景 2：多设备 BGP 路由表比较（从 routescompare 迁移而来）
+# ---------------------------------------------------------------------------
+
+_DIFF_TYPE_NAME = {
+    "missing_destination": "缺少Destination",
+    "missing_interface": "接口/对端缺失",
+    "interface_mismatch": "接口不同",
+    "pre_cost_diff": "Pre/Cost差异",
+}
+
+
+@cli.command("compare")
+@click.argument("files", nargs=-1, type=click.Path(exists=True, dir_okay=False))
+@click.option("-b", "--baseline", type=int, default=0, show_default=True,
+              help="基准文件索引（从 0 开始）")
+@click.option("-o", "--output", type=click.Path(),
+              default="bgp_comparison.xlsx", show_default=True,
+              help="Excel 输出路径")
+@click.option("-e", "--encoding", default="auto", show_default=True,
+              help="输入文件编码 (auto/utf-8/gbk)")
+@click.option("--no-excel", is_flag=True, help="只输出终端摘要，不生成 Excel")
+@click.option("-v", "--verbose", is_flag=True, help="显示详细日志")
+def compare(files: tuple, baseline: int, output: str, encoding: str,
+            no_excel: bool, verbose: bool):
+    """场景 2：比较多台设备的 BGP 路由表，输出差异报告
+
+    示例:
+
+      \b
+      routesanalysis compare device1.txt device2.txt
+      routesanalysis compare -b 1 file1.txt file2.txt file3.txt -o diff.xlsx
+    """
+    _setup_logging(verbose)
+
+    if len(files) < 2:
+        click.echo("错误：至少需要 2 个文件进行比较", err=True)
+        sys.exit(2)
+
+    if baseline < 0 or baseline >= len(files):
+        click.echo(f"错误：基准索引 {baseline} 超出范围 (0-{len(files)-1})", err=True)
+        sys.exit(2)
+
+    from routesanalysis.parser import parse_bgp_file, BgpRouteParser
+    from routesanalysis.comparison.comparator import BgpRouteComparator
+
+    click.echo(f"→ 基准文件: {files[baseline]} (索引 {baseline})")
+    click.echo(f"→ 比较文件: {len(files) - 1} 个")
+    click.echo()
+
+    # 1) 逐个解析（以支持 encoding 参数）
+    parser = BgpRouteParser(encoding=encoding)
+    devices = []
+    for i, fp in enumerate(files):
+        try:
+            click.echo(f"  解析 [{i+1}/{len(files)}] {fp}")
+            d = parser.parse_file(fp)
+            devices.append(d)
+        except Exception as e:
+            click.echo(f"  ✗ 解析失败: {e}", err=True)
+            sys.exit(1)
+
+    # 2) 比较
+    comparator = BgpRouteComparator()
+    for d in devices:
+        comparator.add_device(d)
+    comparator.set_baseline(baseline)
+    try:
+        result = comparator.compare_all()
+    except Exception as e:
+        click.echo(f"比较失败: {e}", err=True)
+        if verbose:
+            import traceback
+            click.echo(traceback.format_exc(), err=True)
+        sys.exit(1)
+
+    stats = result.get_statistics()
+    by_type = stats.get("by_type", {})
+
+    click.echo("=" * 60)
+    click.echo(f"基准设备: {result.baseline_device.name} ({len(result.baseline_device.routes)} 路由)")
+    click.echo(f"比较设备: {', '.join(d.name for d in result.compared_devices)}")
+    click.echo(f"差异总数: {len(result.differences)}")
+    click.echo()
+    if by_type:
+        click.echo("差异类型统计:")
+        for k, v in sorted(by_type.items()):
+            click.echo(f"  {_DIFF_TYPE_NAME.get(k, k)}: {v}")
+    click.echo("=" * 60)
+
+    if result.differences:
+        click.echo("\n差异示例 (前 5 个):")
+        for i, diff in enumerate(result.differences[:5], 1):
+            click.echo(f"  {i}. {diff.destination} - {_DIFF_TYPE_NAME.get(diff.difference_type.value, diff.difference_type.value)}")
+        if len(result.differences) > 5:
+            click.echo(f"  ... 还有 {len(result.differences) - 5} 个差异")
+        click.echo()
+
+    if no_excel:
+        return
+
+    try:
+        exporter = ExcelExporter(write_only=len(result.differences) > 10000)
+        exporter.export(result, output)
+        click.echo(f"✓ Excel 报告已生成: {output}")
+    except Exception as e:
+        click.echo(f"导出 Excel 失败: {e}", err=True)
+        if verbose:
+            import traceback
+            click.echo(traceback.format_exc(), err=True)
+        sys.exit(1)
 
 
 if __name__ == "__main__":

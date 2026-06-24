@@ -1,0 +1,11 @@
+<HUAWEI-SWITCH-03>display ip routing-table pro bgp
+Proto: Protocol        Pre: Preference
+Route Flags: R - relay, D - download to fib, T - to vpn-instance, B - black hole route
+------------------------------------------------------------------------------
+Routing Table : _public_
+         Destinations : 4        Routes : 4
+Destination/Mask    Proto   Pre  Cost        Flags NextHop                                  Interface
+       10.0.0.0/24  BGP  60   0             RD  192.168.1.1                             GigabitEthernet0/0/1
+       10.0.3.0/24  BGP  60   0             RD  192.168.1.4                            GigabitEthernet0/0/4
+       10.0.5.0/24  EBGP  60   0             RD  192.168.1.7                            Eth-Trunk1
+       10.0.6.0/24  BGP  60   0             RD  192.168.1.8                            Eth-Trunk2

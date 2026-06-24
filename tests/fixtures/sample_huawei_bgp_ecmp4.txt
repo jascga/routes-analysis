@@ -1,0 +1,11 @@
+<HUAWEI>display ip routing-table pro bgp
+Proto: Protocol        Pre: Preference
+Route Flags: R - relay, D - download to fib, T - to vpn-instance, B - black hole route
+------------------------------------------------------------------------------
+Routing Table : _public_
+         Destinations : 9        Routes : 9
+Destination/Mask    Proto   Pre  Cost        Flags NextHop                                  Interface
+       10.1.1.1/32  BGP  60   0             RD  192.168.1.1                              Eth-Trunk1
+                             BGP  60   0             RD  192.168.2.1                              Eth-Trunk2
+        6.6.6.6/32  EBGP  60   0             RD  192.168.1.1                             Eth-Trunk1
+                            EBGP  60   0             RD  192.168.2.1                             Eth-Trunk2

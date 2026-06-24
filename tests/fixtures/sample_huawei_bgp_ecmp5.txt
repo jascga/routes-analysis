@@ -1,0 +1,18 @@
+<HUAWEI-SWITCH-PEER1>display interface description
+Interface                     PHY     Protocol Description
+Eth-Trunk1                    up      up       to_BJ-CE12808-DSW-01_Eth-Trunk1
+Eth-Trunk2                    up      up       to_BJ-CE12808-DSW-02_Eth-Trunk2
+GigabitEthernet0/0/1          up      up       to_BJ-CE6850-ACC-01_GE0/0/1
+GigabitEthernet0/0/2          up      up       to_switch-core-03_GE0/0/2
+
+<HUAWEI-SWITCH-PEER1>display ip routing-table pro bgp
+Proto: Protocol        Pre: Preference
+Route Flags: R - relay, D - download to fib, T - to vpn-instance, B - black hole route
+------------------------------------------------------------------------------
+Routing Table : _public_
+         Destinations : 3        Routes : 4
+Destination/Mask    Proto   Pre  Cost        Flags NextHop                                  Interface
+       10.0.0.0/24  BGP  60   0             RD  192.168.1.1                                Eth-Trunk1
+                    BGP  60   0             RD  192.168.1.2                                Eth-Trunk2
+      10.0.1.0/24  IBGP  60   0             RD  192.168.1.3                             GigabitEthernet0/0/1
+      10.0.2.0/24  EBGP  60   100           RD  192.168.1.5                             GigabitEthernet0/0/2

@@ -1,0 +1,11 @@
+<HUAWEI-SWITCH-ECMP2>display ip routing-table pro bgp
+Proto: Protocol        Pre: Preference
+Route Flags: R - relay, D - download to fib, T - to vpn-instance, B - black hole route
+------------------------------------------------------------------------------
+Routing Table : _public_
+         Destinations : 3        Routes : 4
+Destination/Mask    Proto   Pre  Cost        Flags NextHop                                  Interface
+       10.0.0.0/24  BGP  60   0             RD  192.168.1.1                             GigabitEthernet0/0/1
+                    BGP  60   0             RD  192.168.1.2                            GigabitEthernet0/0/2
+       10.0.1.0/24  IBGP  60   0             RD  192.168.1.4                            GigabitEthernet0/0/4
+       10.0.2.0/24  EBGP  60   100           RD  192.168.1.5                            Eth-Trunk1

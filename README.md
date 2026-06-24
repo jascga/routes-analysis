@@ -40,6 +40,24 @@
 - **所有路由**：全部 Destination 及其对应的分组信息（含未命中的）
 - **平行设备组清单**：分组键 → 该组下的成员设备列表
 
+### 场景 2：多设备 BGP 路由表比较（compare）
+
+**输入**：多台设备采集的 `display ip routing-table protocol bgp` 输出（可选 `display interface description` 增强）。
+
+**逻辑**：
+
+1. 解析每台设备的路由表（可选接口描述）
+2. 以一台为基准，逐对比较各设备与基准的差异
+3. 分类输出 4 种差异：
+   - `MISSING_DESTINATION`：目的网段在另一台设备中完全缺失
+   - `MISSING_INTERFACE`：接口/对端设备路径不完整
+   - `INTERFACE_MISMATCH`：接口名不同
+   - `PRE_COST_DIFFERENCE`：同一接口的 Pre/Cost 不同
+
+**输出**：Excel 报告，含汇总 + 差异明细 + 颜色标记（红/黄/橙/绿对应上述 4 种差异）。
+
+> **注意**：本场景从 [routescompare](https://github.com/jascga/routescompare) 迁移而来，已不推荐单独使用 routescompare。该仓库已废弃，主体功能整合到本项目下。
+
 ## 安装
 
 ```bash
@@ -62,6 +80,10 @@ routesanalysis multi-group device.txt -m 3
 
 # 只看终端摘要
 routesanalysis multi-group device.txt --no-excel
+
+# 多设备 BGP 路由表比较（场景 2）
+routesanalysis compare device1.txt device2.txt -o diff.xlsx
+routesanalysis compare -b 1 f1.txt f2.txt f3.txt -o diff.xlsx
 
 # 查看文件解析后的设备信息
 routesanalysis inspect device.txt
@@ -157,4 +179,5 @@ pyinstaller --clean scripts\routesanalysis.spec
 ## 路线图
 
 - [x] 场景 1：负载分担到多组平行设备
-- [ ] 场景 2：待定
+- [x] 场景 2：多设备 BGP 路由表比较（从 routescompare 迁移）
+- [ ] 场景 3：待定
