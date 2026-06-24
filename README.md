@@ -113,6 +113,47 @@ routes-analysis/
 pytest -q
 ```
 
+## Windows 可执行文件打包
+
+### 方式 1：本地打包（推荐个人使用）
+
+需在 **Windows** 上进行（PyInstaller 不支持跨平台编译）。
+
+1. 安装 [Python 3.9+](https://www.python.org/downloads/windows/)，勾选 "Add Python to PATH"
+2. clone 仓库到本地
+3. 在项目根目录双击运行 `scripts\build.bat`
+4. 输出文件：`dist\routesanalysis.exe`（约 10-15MB）
+
+使用方法：
+
+```cmd
+routesanalysis.exe multi-group device.txt -o report.xlsx
+routesanalysis.exe --help
+```
+
+### 方式 2：GitHub Actions 自动打包
+
+push 一个 tag 就会自动打包并发布到 Release：
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+打包产物会作为 Release asset 发布。同时可手动在 Actions 页面触发 `build-windows` workflow 获取 artifact。
+
+### 方式 3：手动用 spec 文件
+
+```cmd
+pip install pyinstaller
+pyinstaller --clean scripts\routesanalysis.spec
+```
+
+### 跨平台说明
+
+- 不可在 Linux/macOS 打包出可在 Windows 运行的 exe
+- Linux/macOS 可用 `scripts/build.sh` 本地测试打包（产物仅限该系统运行）
+
 ## 路线图
 
 - [x] 场景 1：负载分担到多组平行设备

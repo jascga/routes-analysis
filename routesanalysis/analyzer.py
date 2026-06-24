@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Set, Tuple, Any
 from collections import defaultdict
 
-from .models import Device, BgpRoute
+from routesanalysis.models import Device, BgpRoute
 
 
 # ---------------------------------------------------------------------------

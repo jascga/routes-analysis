@@ -9,10 +9,10 @@ from typing import List
 
 import click
 
-from . import __version__
-from .parser import parse_bgp_file
-from .analyzer import MultiGroupAnalyzer, MultiGroupAnalysisResult
-from .exporter import export_multi_group_result
+from routesanalysis import __version__
+from routesanalysis.parser import parse_bgp_file
+from routesanalysis.analyzer import MultiGroupAnalyzer, MultiGroupAnalysisResult
+from routesanalysis.exporter import export_multi_group_result
 
 logger = logging.getLogger(__name__)
 
