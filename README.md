@@ -111,18 +111,46 @@ Destination/Mask    Proto   Pre  Cost        Flags NextHop         Interface
 
 ```
 routes-analysis/
-├── routesanalysis/
-│   ├── parser.py      # 路由表 + 接口描述解析（复用 routescompare）
-│   ├── models.py      # Device / BgpRoute / RouteProtocol（复用 routescompare）
-│   ├── analyzer.py    # 平行设备分组 + 多组分担分析
-│   ├── exporter.py    # Excel 导出
-│   └── main.py        # CLI（click）
-├── tests/
-│   ├── test_analyzer.py
-│   └── fixtures/sample_me_01.txt
-├── pyproject.toml
-├── requirements.txt
-└── README.md
+├── routesanalysis/          # 核心代码
+│   ├── __init__.py          # 版本定义
+│   ├── main.py              # CLI 入口
+│   ├── analyzer.py          # 场景1：多组平行设备负载分担分析
+│   ├── comparator.py        # 场景2：多设备 BGP 路由表比较
+│   ├── models/              # 数据模型
+│   │   ├── __init__.py      # 统一导出
+│   │   ├── common.py        # 共用模型（Device / BgpRoute / RouteProtocol）
+│   │   └── compare.py       # compare 场景专用模型（差异类型/比较结果）
+│   ├── parsing/             # 解析引擎
+│   │   ├── __init__.py      # 统一入口 + BgpRouteParser 兼容包装
+│   │   ├── core.py          # 公共工具（编码检测、设备名提取）
+│   │   ├── textfsm_engine.py# TextFSM 优先解析
+│   │   └── regex_engine.py  # 正则 fallback 解析
+│   ├── export/              # 导出层
+│   │   ├── __init__.py      # 统一导出
+│   │   ├── base.py          # 公共样式 + 工具函数
+│   │   ├── multi_group.py   # 场景1 Excel 报告
+│   │   └── comparison.py    # 场景2 Excel 差异报告
+│   └── templates/           # TextFSM 模板
+│       ├── huawei_bgp_routing_table.textfsm
+│       └── huawei_interface_description.textfsm
+├── tests/                   # 单元测试
+│   ├── fixtures/            # 测试用例（华为路由表文件）
+│   ├── test_analyzer.py     # 场景1 测试
+│   ├── test_comparator.py   # 场景2 测试
+│   ├── test_exporter.py     # 导出测试
+│   └── test_parser.py       # 解析测试
+├── scripts/                 # 打包脚本
+│   ├── build.bat            # Windows 一键打包
+│   ├── build.sh             # Linux/macOS 打包
+│   └── routesanalysis.spec  # PyInstaller 配置
+├── docs/                    # 项目文档
+│   ├── 使用指南.md
+│   ├── 需求设计.md
+│   ├── 开发记录.md
+│   └── 优化规划.md
+├── pyproject.toml           # 项目配置 + 依赖
+├── requirements.txt         # 依赖清单
+└── README.md                # 项目说明
 ```
 
 ## 不规范对端设备名处理
