@@ -17,7 +17,7 @@ block_cipher = None
 datas = [
     (str(ROOT / 'README.md'), '.'),
     (str(ROOT / 'routesanalysis' / 'templates'), 'routesanalysis/templates'),
-    (str(ROOT / 'routesanalysis' / 'config.yaml'), 'routesanalysis'),
+    (str(ROOT / 'routesanalysis' / 'parallel_group_config.yaml'), 'routesanalysis'),
 ]
 
 hiddenimports = [

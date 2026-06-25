@@ -16,7 +16,7 @@ def load_config(config_path: Optional[str] = None) -> Dict[str, Any]:
     if config_path:
         path = Path(config_path)
     else:
-        path = Path(__file__).parent / "config.yaml"
+        path = Path(__file__).parent / "parallel_group_config.yaml"
     if not path.exists():
         _config_cache = {}
         return _config_cache
