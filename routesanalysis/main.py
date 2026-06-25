@@ -12,10 +12,9 @@ import click
 from routesanalysis import __version__
 from routesanalysis.parser import parse_bgp_file
 from routesanalysis.analyzer import MultiGroupAnalyzer, MultiGroupAnalysisResult
-from routesanalysis.exporter import export_multi_group_result
-from routesanalysis.comparison import (
-    BgpRouteComparator, compare_bgp_files, ExcelExporter,
-)
+from routesanalysis.export import export_multi_group_result, export_comparison_result
+from routesanalysis.comparison import BgpRouteComparator
+from routesanalysis.export.comparison import ExcelExporter
 
 logger = logging.getLogger(__name__)
 

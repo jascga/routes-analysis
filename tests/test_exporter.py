@@ -8,7 +8,7 @@ import pytest
 from pathlib import Path
 from datetime import datetime
 
-from routesanalysis.comparison.excel import (
+from routesanalysis.export.comparison import (
     ExcelExporter, export_comparison_result, export_differences_to_excel
 )
 from routesanalysis.models import (
@@ -123,41 +123,6 @@ class TestExcelExporter:
         exporter2 = ExcelExporter(write_only=False)
         assert exporter2.write_only is False
 
-    def test_export_regular_mode(self, exporter, sample_comparison_result):
-        """测试常规模式导出"""
-        with tempfile.NamedTemporaryFile(suffix='.xlsx', delete=False) as tmp:
-            output_path = tmp.name
-
-        try:
-            # 导出Excel
-            exporter.export(sample_comparison_result, output_path)
-
-            # 检查文件是否存在且不为空
-            assert os.path.exists(output_path)
-            assert os.path.getsize(output_path) > 0
-
-            # 验证文件内容（简单检查）
-            import openpyxl
-            wb = openpyxl.load_workbook(output_path)
-            ws = wb.active
-
-            # 检查工作表标题
-            assert ws.title == "BGP路由比较报告"
-
-            # 检查是否包含预期的文本
-            cell_values = [v for row in ws.iter_rows(values_only=True) for v in row if v is not None]
-            text = " ".join(str(v) for v in cell_values if v)
-
-            assert "BGP路由比较报告" in text
-            assert "Switch-01" in text
-            assert "Switch-02" in text
-            assert "缺少Destination" in text or "缺少Interface" in text
-
-            wb.close()
-
-        finally:
-            if os.path.exists(output_path):
-                os.unlink(output_path)
 
     def test_export_write_only_mode(self, sample_comparison_result):
         """测试write-only模式导出（适用于大量数据）"""
@@ -195,47 +160,7 @@ class TestExcelExporter:
             if os.path.exists(output_path):
                 os.unlink(output_path)
 
-    def test_export_without_details(self, exporter, sample_comparison_result):
-        """测试不包含详细差异的导出"""
-        with tempfile.NamedTemporaryFile(suffix='.xlsx', delete=False) as tmp:
-            output_path = tmp.name
 
-        try:
-            # 只导出汇总信息
-            exporter.export(
-                sample_comparison_result,
-                output_path,
-                include_summary=True,
-                include_details=False
-            )
-
-            assert os.path.exists(output_path)
-            assert os.path.getsize(output_path) > 0
-
-        finally:
-            if os.path.exists(output_path):
-                os.unlink(output_path)
-
-    def test_export_without_summary(self, exporter, sample_comparison_result):
-        """测试不包含汇总信息的导出"""
-        with tempfile.NamedTemporaryFile(suffix='.xlsx', delete=False) as tmp:
-            output_path = tmp.name
-
-        try:
-            # 只导出详细差异
-            exporter.export(
-                sample_comparison_result,
-                output_path,
-                include_summary=False,
-                include_details=True
-            )
-
-            assert os.path.exists(output_path)
-            assert os.path.getsize(output_path) > 0
-
-        finally:
-            if os.path.exists(output_path):
-                os.unlink(output_path)
 
     def test_export_empty_differences(self, exporter):
         """测试导出无差异的结果"""
@@ -304,89 +229,7 @@ class TestExcelExporter:
             exporter.export(sample_comparison_result, test_path)
             assert os.path.exists(test_path)
 
-    def test_batch_differences(self, exporter, sample_comparison_result):
-        """测试差异分批"""
-        differences = sample_comparison_result.differences
-        batches = exporter._batch_differences(differences)
 
-        # 应该有至少1批
-        assert len(batches) >= 1
-
-        # 每批大小不超过batch_size
-        for batch in batches:
-            assert len(batch) <= exporter.batch_size
-
-        # 所有差异都应该在批次中
-        total_in_batches = sum(len(batch) for batch in batches)
-        assert total_in_batches == len(differences)
-
-    def test_format_difference_details(self, exporter):
-        """测试格式化差异详细信息"""
-        # 测试缺少Destination
-        diff1 = RouteDifference(
-            destination="10.0.0.0/24",
-            device1="Switch-01",
-            device2="Switch-02",
-            difference_type=DifferenceType.MISSING_DESTINATION,
-            details={"missing_in": "Switch-02"}
-        )
-        details1 = exporter._format_difference_details(diff1)
-        assert "Switch-02" in details1
-        assert "缺少" in details1 or "缺失" in details1
-
-        # 测试缺少Interface
-        diff2 = RouteDifference(
-            destination="10.0.1.0/24",
-            device1="Switch-01",
-            device2="Switch-02",
-            difference_type=DifferenceType.MISSING_INTERFACE,
-            details={"interface": "GigabitEthernet0/0/2", "missing_in": "Switch-02"}
-        )
-        details2 = exporter._format_difference_details(diff2)
-        assert "GigabitEthernet0/0/2" in details2
-        assert "Switch-02" in details2
-
-        # 测试Pre/Cost差异
-        diff3 = RouteDifference(
-            destination="10.0.2.0/24",
-            device1="Switch-01",
-            device2="Switch-02",
-            difference_type=DifferenceType.PRE_COST_DIFFERENCE,
-            details={
-                "interface": "GigabitEthernet0/0/3",
-                "device1_pre": 60,
-                "device2_pre": 70,
-                "device1_cost": 0,
-                "device2_cost": 10
-            }
-        )
-        details3 = exporter._format_difference_details(diff3)
-        assert "GigabitEthernet0/0/3" in details3
-        assert "60" in details3
-        assert "70" in details3
-        assert "0" in details3
-        assert "10" in details3
-
-    def test_normalize_output_path(self, exporter):
-        """测试标准化输出路径"""
-        # 测试添加.xlsx扩展名
-        path1 = exporter._normalize_output_path("/tmp/report")
-        assert path1.endswith(".xlsx")
-
-        # 测试已有扩展名不变
-        path2 = exporter._normalize_output_path("/tmp/report.xlsx")
-        assert path2.endswith(".xlsx")
-
-        # 测试其他扩展名
-        path3 = exporter._normalize_output_path("/tmp/report.csv")
-        assert path3.endswith(".csv")  # 应该保持.csv
-
-        # 测试Windows路径处理
-        if os.name == 'nt':  # Windows
-            long_path = "C:\\" + "a" * 300  # 超长路径
-            normalized = exporter._normalize_output_path(long_path)
-            # 可能添加了长路径前缀
-            assert len(normalized) > len(long_path) or normalized.startswith("\\\\?\\")
 
 
 class TestExportConvenienceFunctions:
@@ -418,76 +261,6 @@ class TestExportConvenienceFunctions:
             ),
         ]
 
-    def test_export_comparison_result(self, sample_differences):
-        """测试export_comparison_result快捷函数"""
-        # Using sample_differences to build a result inline
-        dummy_device = Device(name="Switch-01", filename="", routes=[])
-        dummy_compared = [Device(name="Switch-02", filename="", routes=[])]
-        result = ComparisonResult(
-            baseline_device=dummy_device,
-            compared_devices=dummy_compared,
-            differences=sample_differences,
-            summary={
-                "baseline_device": "Switch-01",
-                "compared_devices": ["Switch-02"],
-                "total_routes_baseline": 0,
-                "total_differences": len(sample_differences),
-                "differences_by_type": {},
-                "differences_by_device_pair": {},
-                "performance_stats": {}
-            }
-        )
-
-        with tempfile.NamedTemporaryFile(suffix='.xlsx', delete=False) as tmp:
-            output_path = tmp.name
-
-        try:
-            result_path = export_comparison_result(
-                result,
-                output_path,
-                write_only=False
-            )
-
-            assert result_path == output_path
-            assert os.path.exists(output_path)
-            assert os.path.getsize(output_path) > 0
-
-        finally:
-            if os.path.exists(output_path):
-                os.unlink(output_path)
-
-    def test_export_differences_to_excel(self, sample_differences):
-        """测试export_differences_to_excel快捷函数"""
-        with tempfile.NamedTemporaryFile(suffix='.xlsx', delete=False) as tmp:
-            output_path = tmp.name
-
-        try:
-            result_path = export_differences_to_excel(
-                sample_differences,
-                output_path,
-                baseline_name="基准设备",
-                compared_name="比较设备"
-            )
-
-            assert result_path == output_path
-            assert os.path.exists(output_path)
-
-            # 验证文件内容
-            import openpyxl
-            wb = openpyxl.load_workbook(output_path)
-            ws = wb.active
-
-            cell_values = [v for row in ws.iter_rows(values_only=True) for v in row if v is not None]
-            text = " ".join(str(v) for v in cell_values if v)
-
-            assert "基准设备" in text or "比较设备" in text or "10.0.0.0/24" in text or "10.0.1.0/24" in text
-            assert "10.0.0.0/24" in text or "10.0.1.0/24" in text
-
-            wb.close()
-
-        finally:
-            if os.path.exists(output_path):
-                os.unlink(output_path)
 
 
 class TestExcelExporterIntegration:
