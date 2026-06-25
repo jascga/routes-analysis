@@ -1,5 +1,6 @@
 """
 BGP路由表解析器 - 支持华为设备格式
+双解析策略：优先用TextFSM + ntc-templates解析，解析失败回退到内置正则
 """
 
 import re
@@ -7,9 +8,10 @@ import os
 import sys
 from pathlib import Path
 from dataclasses import dataclass
-from typing import List, Optional, Iterator, TextIO, Tuple
+from typing import List, Optional, Iterator, TextIO, Tuple, Dict, Any
 import logging
 import chardet
+import textfsm
 
 from .models import BgpRoute, RouteProtocol, Device
 
@@ -32,6 +34,7 @@ class BgpRouteParser:
     """
     华为BGP路由表解析器
 
+    双解析策略：优先用TextFSM + ntc-templates解析，解析失败回退到内置正则
     支持标准华为格式：Destination/Mask Protocol Pre Cost NextHop Interface
     示例：10.0.0.0/24 BGP 60 0 192.168.1.1 GigabitEthernet0/0/1
     """
@@ -39,6 +42,103 @@ class BgpRouteParser:
     # 预编译正则表达式以提高性能
     # 匹配设备名称：从< >中提取
     DEVICE_NAME_PATTERN = re.compile(r'<([^>]+)>')
+
+    def _parse_with_textfsm(self, lines: List[str]) -> Optional[Tuple[str, List[BgpRoute], Dict[str, str]]]:
+        """用TextFSM + ntc-templates解析，失败返回None"""
+        device_name = None
+        routes: List[BgpRoute] = []
+        interface_peer_map: Dict[str, str] = {}
+        content = "\n".join(lines)
+
+        # 1. 提取设备名
+        for line in lines:
+            match = self.DEVICE_NAME_PATTERN.search(line.strip())
+            if match:
+                device_name = match.group(1).strip()
+                break
+
+        if not device_name:
+            return None
+
+        # 2. 尝试解析BGP路由表
+        try:
+            # 加载自定义TextFSM模板
+            template_path = Path(__file__).parent / "templates" / "huawei_bgp_routing_table.textfsm"
+            if not template_path.exists() and getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+                template_path = Path(sys._MEIPASS) / "routesanalysis" / "templates" / "huawei_bgp_routing_table.textfsm"
+            
+            with open(template_path, encoding='utf8') as f:
+                fsm = textfsm.TextFSM(f)
+            parsed = fsm.ParseText(content)
+
+            # 模板输出格式：[DESTINATION, PROTOCOL, PREFERENCE, COST, NEXTHOP, INTERFACE]
+            for entry in parsed:
+                dest = entry[0] if entry[0] else ""
+                proto = entry[1]
+                # 协议映射
+                if proto == "IBGP":
+                    route_proto = RouteProtocol.IBGP
+                elif proto == "EBGP":
+                    route_proto = RouteProtocol.EBGP
+                else:
+                    route_proto = RouteProtocol.BGP
+                try:
+                    pre = int(entry[2]) if entry[2] else 0
+                    cost = int(entry[3]) if entry[3] else 0
+                except (ValueError, IndexError):
+                    pre = 0
+                    cost = 0
+                next_hop = entry[4] if len(entry) > 4 and entry[4] else ""
+                interface = entry[5] if len(entry) > 5 and entry[5] else ""
+                routes.append(BgpRoute(
+                    destination=dest,
+                    next_hop=next_hop,
+                    interface=interface,
+                    pre=pre,
+                    cost=cost,
+                    protocol=route_proto
+                ))
+
+            # 3. 提取接口描述（用内置正则逻辑，和fallback保持一致）
+            self._in_routing_table = False
+            last_destination = None
+            _in_interface_desc = False
+            _looking_for_desc = False
+            for line_num, line in enumerate(lines, 1):
+                line = line.rstrip()
+
+                # 提取设备名
+                dev_match = self.DEVICE_NAME_PATTERN.search(line.strip())
+                dev_match = self.DEVICE_NAME_PATTERN.search(line.strip())
+                if dev_match:
+                    continue
+                # 接口描述解析（复用原逻辑）
+                if self._is_interface_desc_header(line):
+                    _in_interface_desc = True
+                    _looking_for_desc = True
+                    continue
+                if _looking_for_desc and 'Interface' in line and 'PHY' in line and 'Protocol' in line and 'Description' in line:
+                    continue
+                if _looking_for_desc and not line.strip():
+                    _in_interface_desc = False
+                    continue
+                if _in_interface_desc and _looking_for_desc:
+                    match = self.INTERFACE_DESC_PATTERN.match(line)
+                    if match:
+                        intf = match.group(1).strip()
+                        desc = match.group(2).strip() if match.lastindex >= 2 else ""
+                        peer = self._extract_peer_device(desc)
+                        if peer:
+                            interface_peer_map[intf] = peer
+                # 路由表和接口描述之间的行跳过
+                if self._is_routing_table_start(line):
+                    _in_interface_desc = False
+                    _looking_for_desc = False
+
+            return (device_name, routes, interface_peer_map)
+
+        except Exception:
+            return None
 
     # 匹配路由条目行（华为标准格式）
     # 实际设备格式：Destination/Mask Proto Pre Cost Flags NextHop Interface
@@ -246,6 +346,7 @@ class BgpRouteParser:
     def parse_lines(self, lines: List[str], device_name: str = "unknown") -> Device:
         """
         直接从文本行解析路由表（用于测试或内存中的文本）
+        双解析策略：优先TextFSM + ntc-templates解析，失败回退到内置正则
 
         Args:
             lines: 文本行列表
@@ -254,6 +355,24 @@ class BgpRouteParser:
         Returns:
             Device对象
         """
+        extract_device_name = device_name == "unknown"
+
+        # 1. 优先尝试TextFSM解析，未指定自定义设备名才会尝试
+        if extract_device_name:
+            textfsm_result = self._parse_with_textfsm(lines)
+            if textfsm_result is not None:
+                parsed_device_name, routes, interface_peer_map = textfsm_result
+                device = Device(
+                    name=parsed_device_name,
+                    filename=self.current_file or "unknown",
+                    routes=routes,
+                    interface_peer_map=interface_peer_map
+                )
+                logging.debug("TextFSM解析成功")
+                return device
+
+        # 2. TextFSM解析失败，回退到内置正则解析
+        logging.debug("TextFSM解析失败，回退到内置正则解析")
         routes = []
         self._in_routing_table = False
         last_destination = None

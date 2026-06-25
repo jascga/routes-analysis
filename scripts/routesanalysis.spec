@@ -1,15 +1,14 @@
 # -*- mode: python ; coding: utf-8 -*-
 # PyInstaller spec 文件 - 用于 windows 打包
-# 用法: pyinstaller routesanalysis.spec
-# 或:   pyinstaller --clean routesanalysis.spec
+# 用法: pyinstaller scripts\routesanalysis.spec
 #
 # 需从项目根目录运行: pyinstaller scripts\routesanalysis.spec
 
 import sys
 from pathlib import Path
 
-# 项目根目录（spec 文件的父目录的父目录）
-ROOT = Path(SPECPATH).resolve().parent  # noqa: F821 (SPECPATH 由 pyinstaller 注入)
+# 项目根目录
+ROOT = Path(SPECPATH).resolve().parent  # noqa: F821
 sys.path.insert(0, str(ROOT))
 
 block_cipher = None
@@ -17,10 +16,12 @@ block_cipher = None
 # 资源文件
 datas = [
     (str(ROOT / 'README.md'), '.'),
+    (str(ROOT / 'routesanalysis' / 'templates'), 'routesanalysis/templates'),
 ]
 
 hiddenimports = [
     'openpyxl.cell._writer',
+    'textfsm',
 ]
 
 a = Analysis(
@@ -68,4 +69,3 @@ exe = EXE(
     entitlements_file=None,
     icon=None,
 )
-
