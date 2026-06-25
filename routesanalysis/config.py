@@ -9,15 +9,24 @@ from typing import Any, Dict, Optional
 
 
 def load_config(config_path: Optional[str] = None) -> Dict[str, Any]:
-    """加载配置文件，不存在则返回空配置"""
+    """加载配置文件，缓存结果避免重复读取"""
+    global _config_cache
+    if _config_cache is not None:
+        return _config_cache
     if config_path:
         path = Path(config_path)
     else:
         path = Path(__file__).parent / "config.yaml"
     if not path.exists():
-        return {}
+        _config_cache = {}
+        return _config_cache
     with open(path, encoding="utf-8") as f:
-        return yaml.safe_load(f) or {}
+        _config_cache = yaml.safe_load(f) or {}
+    return _config_cache
+
+
+# 全局缓存
+_config_cache = None
 
 
 def get_parallel_group_config(config: Optional[Dict] = None) -> Dict:
