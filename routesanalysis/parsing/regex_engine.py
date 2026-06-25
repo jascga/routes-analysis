@@ -183,13 +183,21 @@ class RegexParser:
 
     @staticmethod
     def _extract_peer_device(description: str) -> Optional[str]:
+        """从接口描述中提取对端设备名，描述格式：to_<对端设备名>_<接口名>"""
         if not description:
             return None
         desc = description.strip()
         if desc.lower().startswith("to_"):
-            peer = desc[3:].split("_")[0] if "_" in desc else desc[3:]
+            peer = desc[3:]
+            last_underscore = peer.rfind('_')
+            if last_underscore > 0:
+                peer = peer[:last_underscore]
         elif "_" in desc:
-            peer = desc.split("_")[0]
+            last_underscore = desc.rfind('_')
+            if last_underscore > 0:
+                peer = desc[:last_underscore]
+            else:
+                peer = desc
         else:
             peer = desc
         return peer.strip() if peer else None
