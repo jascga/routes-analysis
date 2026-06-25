@@ -1,0 +1,16 @@
+# routes-analysis 分组规则配置
+# 修改后重启生效，不用改代码
+
+parallel_group:
+  # 设备名分隔符
+  separator: "-"
+
+  # 忽略的段索引（从 0 开始），多个用列表
+  # 当前：忽略第三段（设备型号）
+  ignore_segments: [2]
+
+  # 特殊段处理规则
+  segment_rules:
+    - segment_index: 1        # 第二段
+      prefix: "nc"            # 以 nc 开头（大小写不敏感）
+      strip_suffix: "_cnt"    # 去掉 _cnt 及之后的内容，保留 _cnt 本身
