@@ -1,0 +1,109 @@
+"""公共数据模型 - 两个场景共用"""
+from __future__ import annotations
+
+from dataclasses import dataclass, field
+from enum import Enum
+from typing import List, Dict, Optional, Tuple, Set
+from collections import namedtuple
+
+
+class RouteProtocol(Enum):
+    """BGP路由协议类型"""
+    BGP = "BGP"
+    IBGP = "IBGP"
+    EBGP = "EBGP"
+
+
+# 紧凑的路由元组，用于内存优化
+RouteTuple = namedtuple('RouteTuple', ['destination', 'interface', 'pre', 'cost', 'protocol'])
+
+
+@dataclass(frozen=True, eq=True)
+class BgpRoute:
+    """BGP路由条目，使用frozen dataclass确保可哈希"""
+    destination: str
+    next_hop: str
+    interface: str
+    pre: int
+    cost: int
+    protocol: RouteProtocol
+
+    def __post_init__(self):
+        if self.pre < 0 or self.pre > 255:
+            raise ValueError(f"Pre值必须在0-255范围内: {self.pre}")
+        if self.cost < 0:
+            raise ValueError(f"Cost值必须非负: {self.cost}")
+
+    def to_tuple(self) -> RouteTuple:
+        return RouteTuple(
+            destination=self.destination,
+            interface=self.interface,
+            pre=self.pre,
+            cost=self.cost,
+            protocol=self.protocol.value,
+        )
+
+    def get_comparison_key(self) -> Tuple:
+        return (self.destination, self.interface, self.pre, self.cost, self.protocol)
+
+    @classmethod
+    def from_tuple(cls, route_tuple: RouteTuple, next_hop: str = "") -> 'BgpRoute':
+        protocol_map = {p.value: p for p in RouteProtocol}
+        protocol = protocol_map.get(route_tuple.protocol, RouteProtocol.BGP)
+        return cls(
+            destination=route_tuple.destination,
+            next_hop=next_hop,
+            interface=route_tuple.interface,
+            pre=route_tuple.pre,
+            cost=route_tuple.cost,
+            protocol=protocol,
+        )
+
+
+@dataclass
+class Device:
+    """网络设备"""
+    name: str
+    filename: str
+    routes: List[BgpRoute]
+    interface_peer_map: Dict[str, str] = field(default_factory=dict)
+    route_tuples: Set[RouteTuple] = field(default_factory=set, init=False)
+
+    def __post_init__(self):
+        self.route_tuples = {route.to_tuple() for route in self.routes}
+        self.routes.sort(key=lambda r: (r.destination, r.interface))
+
+    def get_peer_device(self, interface: str) -> str:
+        return self.interface_peer_map.get(interface, interface)
+
+    def has_interface_descriptions(self) -> bool:
+        return len(self.interface_peer_map) > 0
+
+    def get_routes_by_destination(self) -> Dict[str, List[BgpRoute]]:
+        grouped = {}
+        for route in self.routes:
+            grouped.setdefault(route.destination, []).append(route)
+        return grouped
+
+    def get_routes_by_interface(self) -> Dict[str, List[BgpRoute]]:
+        grouped = {}
+        for route in self.routes:
+            grouped.setdefault(route.interface, []).append(route)
+        return grouped
+
+    def has_route(self, route_tuple: RouteTuple) -> bool:
+        return route_tuple in self.route_tuples
+
+    def find_route(self, destination: str, interface: str) -> Optional[BgpRoute]:
+        for route in self.routes:
+            if route.destination == destination and route.interface == interface:
+                return route
+        return None
+
+
+def create_route_index(routes: List[BgpRoute]) -> Dict[str, Dict[str, BgpRoute]]:
+    """创建两层索引：destination -> interface -> route"""
+    index = {}
+    for route in routes:
+        index.setdefault(route.destination, {})[route.interface] = route
+    return index

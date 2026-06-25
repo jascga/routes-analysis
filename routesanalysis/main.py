@@ -10,10 +10,10 @@ from typing import List
 import click
 
 from routesanalysis import __version__
-from routesanalysis.parser import parse_bgp_file
+from routesanalysis.parsing import parse_bgp_file, BgpRouteParser
 from routesanalysis.analyzer import MultiGroupAnalyzer, MultiGroupAnalysisResult
 from routesanalysis.export import export_multi_group_result, export_comparison_result
-from routesanalysis.comparison import BgpRouteComparator
+from routesanalysis.comparator import BgpRouteComparator
 from routesanalysis.export.comparison import ExcelExporter
 
 logger = logging.getLogger(__name__)
@@ -195,8 +195,8 @@ def compare(files: tuple, baseline: int, output: str, encoding: str,
         click.echo(f"错误：基准索引 {baseline} 超出范围 (0-{len(files)-1})", err=True)
         sys.exit(2)
 
-    from routesanalysis.parser import parse_bgp_file, BgpRouteParser
-    from routesanalysis.comparison.comparator import BgpRouteComparator
+    from routesanalysis.parsing import parse_bgp_file, BgpRouteParser
+    from routesanalysis.comparator import BgpRouteComparator
 
     click.echo(f"→ 基准文件: {files[baseline]} (索引 {baseline})")
     click.echo(f"→ 比较文件: {len(files) - 1} 个")
