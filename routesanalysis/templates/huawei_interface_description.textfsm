@@ -1,0 +1,12 @@
+Value Required INTERFACE (\S+)
+Value STATUS (up|down)
+Value PROTOCOL (up|down)
+Value DESCRIPTION (.*)
+
+Start
+  # 跳过表头行
+  ^Interface.*PHY.*Protocol.*Description -> Next
+  ^\s*$$ -> Next
+  ^-+ -> Next
+  # 数据行
+  ^${INTERFACE}\s+${STATUS}\s+${PROTOCOL}\s+${DESCRIPTION}\s*$$ -> Record

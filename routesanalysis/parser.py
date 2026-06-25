@@ -99,41 +99,22 @@ class BgpRouteParser:
                     protocol=route_proto
                 ))
 
-            # 3. 提取接口描述（用内置正则逻辑，和fallback保持一致）
-            self._in_routing_table = False
-            last_destination = None
-            _in_interface_desc = False
-            _looking_for_desc = False
-            for line_num, line in enumerate(lines, 1):
-                line = line.rstrip()
-
-                # 提取设备名
-                dev_match = self.DEVICE_NAME_PATTERN.search(line.strip())
-                dev_match = self.DEVICE_NAME_PATTERN.search(line.strip())
-                if dev_match:
-                    continue
-                # 接口描述解析（复用原逻辑）
-                if self._is_interface_desc_header(line):
-                    _in_interface_desc = True
-                    _looking_for_desc = True
-                    continue
-                if _looking_for_desc and 'Interface' in line and 'PHY' in line and 'Protocol' in line and 'Description' in line:
-                    continue
-                if _looking_for_desc and not line.strip():
-                    _in_interface_desc = False
-                    continue
-                if _in_interface_desc and _looking_for_desc:
-                    match = self.INTERFACE_DESC_PATTERN.match(line)
-                    if match:
-                        intf = match.group(1).strip()
-                        desc = match.group(2).strip() if match.lastindex >= 2 else ""
-                        peer = self._extract_peer_device(desc)
-                        if peer:
-                            interface_peer_map[intf] = peer
-                # 路由表和接口描述之间的行跳过
-                if self._is_routing_table_start(line):
-                    _in_interface_desc = False
-                    _looking_for_desc = False
+            # 3. 用TextFSM解析接口描述
+            try:
+                intf_template_path = Path(__file__).parent / "templates" / "huawei_interface_description.textfsm"
+                if not intf_template_path.exists() and getattr(sys, 'frozen', False) and hasattr(sys, '_MEIPASS'):
+                    intf_template_path = Path(sys._MEIPASS) / "routesanalysis" / "templates" / "huawei_interface_description.textfsm"
+                with open(intf_template_path, encoding='utf8') as f:
+                    intf_fsm = textfsm.TextFSM(f)
+                intf_parsed = intf_fsm.ParseText(content)
+                for intf_entry in intf_parsed:
+                    intf = intf_entry[0]
+                    desc = intf_entry[3].strip() if len(intf_entry) > 3 else ""
+                    peer = self._extract_peer_device(desc)
+                    if peer:
+                        interface_peer_map[intf] = peer
+            except Exception:
+                pass
 
             return (device_name, routes, interface_peer_map)
 
