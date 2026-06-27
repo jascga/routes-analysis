@@ -1,5 +1,5 @@
 """数据模型"""
-from .common import Device, BgpRoute, RouteProtocol, RouteTuple, create_route_index
+from .common import Device, BgpRoute, RouteProtocol, RouteTuple, Interface, create_route_index
 from .compare import ComparisonResult, RouteDifference, DifferenceType
 
 __all__ = [
@@ -7,6 +7,7 @@ __all__ = [
     "BgpRoute",
     "RouteProtocol",
     "RouteTuple",
+    "Interface",
     "create_route_index",
     "ComparisonResult",
     "RouteDifference",

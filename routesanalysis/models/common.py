@@ -101,6 +101,18 @@ class Device:
         return None
 
 
+@dataclass
+class Interface:
+    """设备接口信息"""
+    name: str                     # 接口号，如 "GigabitEthernet0/0/1"
+    description: str = ""         # 原始接口描述文本
+    status: str = ""              # 物理状态 up/down
+    protocol_status: str = ""     # 协议状态 up/down
+    peer_device: str = ""         # 对端设备名
+    peer_interface: str = ""      # 对端接口名
+    peer_source: str = "none"     # 数据来源："description" / "lldp" / "none"
+
+
 def create_route_index(routes: List[BgpRoute]) -> Dict[str, Dict[str, BgpRoute]]:
     """创建两层索引：destination -> interface -> route"""
     index = {}
