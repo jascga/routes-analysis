@@ -5,7 +5,7 @@ from __future__ import annotations
 import sys
 import logging
 from pathlib import Path
-from typing import List
+from typing import List, Tuple
 
 import click
 
@@ -164,6 +164,121 @@ _DIFF_TYPE_NAME = {
 }
 
 
+def _format_file_size(size_bytes: int) -> str:
+    """格式化文件大小"""
+    if size_bytes < 1024:
+        return f"{size_bytes}B"
+    elif size_bytes < 1024 * 1024:
+        return f"{size_bytes / 1024:.0f}KB"
+    else:
+        return f"{size_bytes / 1024 / 1024:.1f}MB"
+
+
+def _scan_and_select_files() -> Tuple[List[str], int]:
+    """扫描当前目录，交互式选择文件和基准设备"""
+    from routesanalysis.parsing import scan_file, FileScanResult
+    from pathlib import Path
+
+    click.echo("\n=== 扫描目录中的 BGP 路由表文件 ===")
+    click.echo(f"  扫描目录: {Path.cwd()}")
+
+    extensions = [".txt", ".log", ".cfg"]
+    candidates = []
+    for ext in extensions:
+        for f in Path.cwd().glob(f"*{ext}"):
+            if f.is_file():
+                candidates.append(str(f))
+    candidates.sort()
+
+    if not candidates:
+        click.echo(f"当前目录中未找到支持的路由表文件 ({', '.join(extensions)})")
+        return [], 0
+
+    results: List[FileScanResult] = []
+    for filepath in candidates:
+        fname = Path(filepath).name
+        click.echo(f"  正在验证: {fname}... ", nl=False)
+        result = scan_file(filepath)
+        if result.is_valid:
+            click.echo(f"有效 (设备: {result.device_name}, 路由数: {result.route_count})")
+            results.append(result)
+        else:
+            click.echo(f"跳过 - {result.error_message}")
+
+    click.echo()
+
+    if not results:
+        click.echo("当前目录中未找到有效的 BGP 路由表文件")
+        return [], 0
+
+    if len(results) < 2:
+        click.echo(f"至少需要 2 个有效文件（仅找到 {len(results)} 个）")
+        return [], 0
+
+    # 显示文件列表
+    click.echo(f"找到 {len(results)} 个 BGP 路由表文件:")
+    header = f"  {'#':<4} {'文件':<30} {'设备':<22} {'路由':<8} {'大小':<8}"
+    sep = f"  {'-'*4} {'-'*30} {'-'*22} {'-'*8} {'-'*8}"
+    click.echo(header)
+    click.echo(sep)
+    for i, r in enumerate(results, 1):
+        click.echo(f"  {i:<4} {r.filename:<30} {r.device_name:<22} {r.route_count:<8} {_format_file_size(r.file_size):<8}")
+
+    click.echo()
+
+    # 选择文件
+    while True:
+        use_all = click.confirm("是否使用以上所有文件?", default=True)
+        if use_all:
+            selected = [r.filepath for r in results]
+            break
+        indices_str = click.prompt("请输入要比较的文件编号（逗号分隔，例如: 1,3,5）")
+        try:
+            raw_indices = [x.strip() for x in indices_str.split(",")]
+            indices = []
+            for x in raw_indices:
+                idx = int(x)
+                if 1 <= idx <= len(results):
+                    indices.append(idx)
+            if not indices:
+                click.echo("未选择有效编号，请重试")
+                continue
+            selected = [results[i - 1].filepath for i in indices]
+            selected_names = [results[i - 1].filename for i in indices]
+            click.echo(f"  已选择: {', '.join(selected_names)}")
+            if click.confirm("确认?", default=True):
+                break
+        except ValueError:
+            click.echo("输入格式错误，请使用逗号分隔的数字")
+
+    # 选择基准设备
+    selected_info = []
+    for fp in selected:
+        name = Path(fp).stem
+        for r in results:
+            if r.filepath == fp:
+                name = r.device_name
+                break
+        selected_info.append((fp, name))
+
+    click.echo("\n  选择基准设备:")
+    for i, (_, name) in enumerate(selected_info, 1):
+        click.echo(f"    {i}. {name}")
+
+    while True:
+        baseline_str = click.prompt(f"请输入基准设备编号 (1-{len(selected_info)}) ", default="1")
+        try:
+            baseline_idx = int(baseline_str) - 1
+            if 0 <= baseline_idx < len(selected_info):
+                click.echo(f"基准设备: {selected_info[baseline_idx][1]}")
+                break
+        except ValueError:
+            click.echo("请输入有效数字")
+
+    click.echo()
+    return selected, baseline_idx
+
+
 @cli.command("compare")
 @click.argument("files", nargs=-1, type=click.Path(exists=True, dir_okay=False))
 @click.option("-b", "--baseline", type=int, default=0, show_default=True,
@@ -174,18 +289,29 @@ _DIFF_TYPE_NAME = {
 @click.option("-e", "--encoding", default="auto", show_default=True,
               help="输入文件编码 (auto/utf-8/gbk)")
 @click.option("--no-excel", is_flag=True, help="只输出终端摘要，不生成 Excel")
+@click.option("--scan", "-s", is_flag=True, help="扫描当前目录并交互式选择比较文件")
 @click.option("-v", "--verbose", is_flag=True, help="显示详细日志")
 def compare(files: tuple, baseline: int, output: str, encoding: str,
-            no_excel: bool, verbose: bool):
+            no_excel: bool, scan: bool, verbose: bool):
     """场景 2：比较多台设备的 BGP 路由表，输出差异报告
 
     示例:
 
       \b
       routesanalysis compare device1.txt device2.txt
+      routesanalysis compare --scan
       routesanalysis compare -b 1 file1.txt file2.txt file3.txt -o diff.xlsx
     """
     _setup_logging(verbose)
+
+    # --scan 模式
+    if scan:
+        scanned_files, scan_baseline = _scan_and_select_files()
+        if len(scanned_files) < 2:
+            sys.exit(2)
+        if baseline == 0 and scan_baseline != 0:
+            baseline = scan_baseline
+        files = tuple(scanned_files)
 
     if len(files) < 2:
         click.echo("错误：至少需要 2 个文件进行比较", err=True)
