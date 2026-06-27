@@ -34,6 +34,8 @@ class Route:
     pre: int
     cost: int
     protocol: RouteProtocol
+    peer: str = field(default="", compare=False)
+    peer_group: str = field(default="", compare=False)
 
     def __post_init__(self):
         if self.pre < 0 or self.pre > 255:
