@@ -507,10 +507,10 @@ def compare_bgp_files(filepaths: List[str], baseline_index: int = 0,
     Returns:
         ComparisonResult对象
     """
-    from routesanalysis.parsing import parse_multiple_bgp_files
+    from routesanalysis.parsing import parse_device_files
 
     # 解析文件
-    devices = parse_multiple_bgp_files(filepaths)
+    devices = parse_device_files(filepaths)
 
     # 创建比较器并比较
     comparator = BgpRouteComparator(max_workers=max_workers)
@@ -532,10 +532,10 @@ def compare_two_bgp_files(file1: str, file2: str) -> List[RouteDifference]:
     Returns:
         差异列表
     """
-    from routesanalysis.parsing import parse_bgp_file
+    from routesanalysis.parsing import parse_device_file
 
-    device1 = parse_bgp_file(file1)
-    device2 = parse_bgp_file(file2)
+    device1 = parse_device_file(file1)
+    device2 = parse_device_file(file2)
 
     comparator = BgpRouteComparator()
     return comparator.compare_two_devices(device1, device2)

@@ -8,7 +8,7 @@ from routesanalysis.comparator import (
     BgpRouteComparator, OptimizedBgpComparator,
     compare_bgp_files, compare_two_bgp_files
 )
-from routesanalysis.parsing import parse_bgp_file
+from routesanalysis.parsing import parse_device_file
 from routesanalysis.models import (
     Device, Route, RouteProtocol,
     RouteDifference, DifferenceType
@@ -601,9 +601,9 @@ class TestComparatorWithFixtureFiles:
         file2 = str(fixture_dir / "sample_huawei_bgp_ecmp2.txt")
 
         # 解析两个文件
-        from routesanalysis.parsing import parse_bgp_file
-        device1 = parse_bgp_file(file1)
-        device2 = parse_bgp_file(file2)
+        from routesanalysis.parsing import parse_device_file
+        device1 = parse_device_file(file1)
+        device2 = parse_device_file(file2)
 
         # 验证解析正确
         assert device1.name == "HUAWEI-SWITCH-ECMP"
@@ -646,8 +646,8 @@ class TestComparatorWithFixtureFiles:
             str(fixture_dir / "sample_huawei_bgp3.txt"),
         ]
 
-        from routesanalysis.parsing import parse_multiple_bgp_files
-        devices = parse_multiple_bgp_files(files)
+        from routesanalysis.parsing import parse_device_files
+        devices = parse_device_files(files)
         assert len(devices) == 3
 
         comparator = BgpRouteComparator(max_workers=1)
@@ -735,11 +735,11 @@ class TestComparatorWithFixtureFiles:
         file_ecmp = fixture_dir / "sample_huawei_bgp_ecmp.txt"
         # ecmp 的路由接口和 ecmp5 不同 → 按接口名比较应产生差异
 
-        from routesanalysis.parsing import parse_bgp_file
+        from routesanalysis.parsing import parse_device_file
         from routesanalysis.comparator import BgpRouteComparator
 
-        device1 = parse_bgp_file(str(file5))
-        device2 = parse_bgp_file(str(file_ecmp))
+        device1 = parse_device_file(str(file5))
+        device2 = parse_device_file(str(file_ecmp))
 
         comparator = BgpRouteComparator()
         differences = comparator.compare_two_devices(device1, device2)

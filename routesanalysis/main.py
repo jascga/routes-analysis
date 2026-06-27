@@ -10,7 +10,7 @@ from typing import List, Tuple
 import click
 
 from routesanalysis import __version__
-from routesanalysis.parsing import parse_bgp_file, BgpRouteParser
+from routesanalysis.parsing import parse_device_file, BgpRouteParser
 from routesanalysis.analyzer import MultiGroupAnalyzer, MultiGroupAnalysisResult
 from routesanalysis.export import export_multi_group_result, export_comparison_result
 from routesanalysis.comparator import BgpRouteComparator
@@ -67,7 +67,7 @@ def multi_group(files: tuple, output: str | None, min_groups: int,
     for fp in files:
         click.echo(f"→ 解析 {fp}")
         try:
-            device = parse_bgp_file(fp, encoding=encoding)
+            device = parse_device_file(fp, encoding=encoding)
         except Exception as e:
             click.echo(f"  ✗ 解析失败: {e}", err=True)
             continue
@@ -137,7 +137,7 @@ def _write_outputs(results: List[MultiGroupAnalysisResult],
 @click.option("-e", "--encoding", default="auto", show_default=True)
 def inspect(filepath: str, encoding: str):
     """快速查看文件解析后的设备信息"""
-    device = parse_bgp_file(filepath, encoding=encoding)
+    device = parse_device_file(filepath, encoding=encoding)
     click.echo(f"设备名:     {device.name}")
     click.echo(f"源文件:     {device.filename}")
     click.echo(f"路由总数:   {len(device.routes)}")
@@ -321,7 +321,7 @@ def compare(files: tuple, baseline: int, output: str, encoding: str,
         click.echo(f"错误：基准索引 {baseline} 超出范围 (0-{len(files)-1})", err=True)
         sys.exit(2)
 
-    from routesanalysis.parsing import parse_bgp_file, BgpRouteParser
+from routesanalysis.parsing import parse_device_file, BgpRouteParser
     from routesanalysis.comparator import BgpRouteComparator
 
     click.echo(f"→ 基准文件: {files[baseline]} (索引 {baseline})")

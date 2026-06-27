@@ -17,7 +17,7 @@ _textfsm_parser = TextfsmParser()
 _regex_parser = RegexParser()
 
 
-def parse_bgp_file(filepath: str, encoding: str = 'auto') -> Device:
+def parse_device_file(filepath: str, encoding: str = 'auto') -> Device:
     """
     解析 BGP 路由表文件
     双解析策略：TextFSM 优先 → 正则 fallback
@@ -60,9 +60,9 @@ def parse_bgp_file(filepath: str, encoding: str = 'auto') -> Device:
     return device
 
 
-def parse_multiple_bgp_files(filepaths: List[str], encoding: str = 'auto') -> List[Device]:
+def parse_device_files(filepaths: List[str], encoding: str = 'auto') -> List[Device]:
     """解析多个 BGP 路由表文件"""
-    return [parse_bgp_file(fp, encoding) for fp in filepaths]
+    return [parse_device_file(fp, encoding) for fp in filepaths]
 
 
 def validate_file_format(filepath: str) -> bool:
@@ -82,7 +82,7 @@ class BgpRouteParser:
         self.encoding = encoding
 
     def parse_file(self, filepath: str) -> Device:
-        return parse_bgp_file(filepath, encoding=self.encoding)
+        return parse_device_file(filepath, encoding=self.encoding)
 
     def parse_lines(self, lines: List[str], device_name: str = "unknown") -> Device:
         content = "\n".join(lines)
@@ -103,8 +103,8 @@ class BgpRouteParser:
 
 
 __all__ = [
-    "parse_bgp_file",
-    "parse_multiple_bgp_files",
+    "parse_device_file",
+    "parse_device_files",
     "validate_file_format",
     "scan_file",
     "FileScanResult",
