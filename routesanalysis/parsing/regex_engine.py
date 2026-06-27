@@ -6,7 +6,7 @@ import logging
 from pathlib import Path
 from typing import Dict, List, Optional, Iterator, Tuple
 
-from ..models import BgpRoute, RouteProtocol, Device
+from ..models import Route, RouteProtocol, Device
 from .core import extract_device_name, read_file_lines, normalize_path, FileScanResult
 
 logger = logging.getLogger(__name__)
@@ -46,7 +46,7 @@ class RegexParser:
 
     def parse_lines(self, lines: List[str], device_name: str = "unknown") -> Device:
         """解析文本行"""
-        routes: List[BgpRoute] = []
+        routes: List[Route] = []
         interface_peer_map: Dict[str, str] = {}
         self._in_routing_table = False
         last_destination = None
@@ -130,7 +130,7 @@ class RegexParser:
     def _is_routing_table_end(line: str) -> bool:
         return line.strip().startswith('---') and len(line.strip()) > 10
 
-    def _parse_route_line(self, line: str, line_num: int) -> Optional[BgpRoute]:
+    def _parse_route_line(self, line: str, line_num: int) -> Optional[Route]:
         match = self.ROUTE_LINE_PATTERN.match(line)
         if not match:
             return None
@@ -139,7 +139,7 @@ class RegexParser:
         pre = int(match.group(3))
         cost = int(match.group(4))
         interface = match.group(5)
-        return BgpRoute(
+        return Route(
             destination=destination,
             next_hop="",
             interface=interface,
@@ -148,7 +148,7 @@ class RegexParser:
             protocol=self._determine_protocol(protocol_str),
         )
 
-    def _parse_ecmp_continuation(self, line: str, last_destination: Optional[str], line_num: int) -> Optional[BgpRoute]:
+    def _parse_ecmp_continuation(self, line: str, last_destination: Optional[str], line_num: int) -> Optional[Route]:
         if not last_destination or not line.strip():
             return None
         if not line[0].isspace():
@@ -163,7 +163,7 @@ class RegexParser:
         except (ValueError, IndexError):
             return None
         interface = parts[-1]
-        return BgpRoute(
+        return Route(
             destination=last_destination,
             next_hop="",
             interface=interface,

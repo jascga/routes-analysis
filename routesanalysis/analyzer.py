@@ -14,7 +14,7 @@ from dataclasses import dataclass, field
 from typing import Dict, List, Set, Tuple, Any
 from collections import defaultdict
 
-from routesanalysis.models import Device, BgpRoute
+from routesanalysis.models import Device, Route
 from routesanalysis.config import load_config, get_parallel_group_config, get_separator, get_ignore_segments, get_segment_rules
 
 

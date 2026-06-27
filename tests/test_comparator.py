@@ -10,7 +10,7 @@ from routesanalysis.comparator import (
 )
 from routesanalysis.parsing import parse_bgp_file
 from routesanalysis.models import (
-    Device, BgpRoute, RouteProtocol,
+    Device, Route, RouteProtocol,
     RouteDifference, DifferenceType
 )
 
@@ -23,7 +23,7 @@ class TestBgpRouteComparator:
         """创建示例设备用于测试"""
         # 设备1的路由
         routes1 = [
-            BgpRoute(
+            Route(
                 destination="10.0.0.0/24",
                 next_hop="192.168.1.1",
                 interface="GigabitEthernet0/0/1",
@@ -31,7 +31,7 @@ class TestBgpRouteComparator:
                 cost=0,
                 protocol=RouteProtocol.BGP
             ),
-            BgpRoute(
+            Route(
                 destination="10.0.1.0/24",
                 next_hop="192.168.1.2",
                 interface="GigabitEthernet0/0/2",
@@ -39,7 +39,7 @@ class TestBgpRouteComparator:
                 cost=0,
                 protocol=RouteProtocol.IBGP
             ),
-            BgpRoute(
+            Route(
                 destination="10.0.2.0/24",
                 next_hop="192.168.1.3",
                 interface="GigabitEthernet0/0/3",
@@ -51,7 +51,7 @@ class TestBgpRouteComparator:
 
         # 设备2的路由（有些差异）
         routes2 = [
-            BgpRoute(
+            Route(
                 destination="10.0.0.0/24",  # 相同
                 next_hop="192.168.2.1",
                 interface="GigabitEthernet0/0/1",
@@ -60,7 +60,7 @@ class TestBgpRouteComparator:
                 protocol=RouteProtocol.BGP
             ),
             # 缺少 10.0.1.0/24（缺少Destination）
-            BgpRoute(
+            Route(
                 destination="10.0.2.0/24",  # Cost不同
                 next_hop="192.168.2.3",
                 interface="GigabitEthernet0/0/3",
@@ -68,7 +68,7 @@ class TestBgpRouteComparator:
                 cost=150,  # 不同Cost
                 protocol=RouteProtocol.EBGP
             ),
-            BgpRoute(
+            Route(
                 destination="10.0.3.0/24",  # 额外Destination
                 next_hop="192.168.2.4",
                 interface="GigabitEthernet0/0/4",
@@ -172,14 +172,14 @@ class TestBgpRouteComparator:
         """测试比较多个设备"""
         # 创建三个设备
         routes1 = [
-            BgpRoute("10.0.0.0/24", "192.168.1.1", "GE0/0/1", 60, 0, RouteProtocol.BGP),
+            Route("10.0.0.0/24", "192.168.1.1", "GE0/0/1", 60, 0, RouteProtocol.BGP),
         ]
         routes2 = [
-            BgpRoute("10.0.0.0/24", "192.168.2.1", "GE0/0/1", 60, 0, RouteProtocol.BGP),
-            BgpRoute("10.0.1.0/24", "192.168.2.2", "GE0/0/2", 60, 0, RouteProtocol.BGP),  # 额外
+            Route("10.0.0.0/24", "192.168.2.1", "GE0/0/1", 60, 0, RouteProtocol.BGP),
+            Route("10.0.1.0/24", "192.168.2.2", "GE0/0/2", 60, 0, RouteProtocol.BGP),  # 额外
         ]
         routes3 = [
-            BgpRoute("10.0.0.0/24", "192.168.3.1", "GE0/0/1", 70, 0, RouteProtocol.BGP),  # Pre不同
+            Route("10.0.0.0/24", "192.168.3.1", "GE0/0/1", 70, 0, RouteProtocol.BGP),  # Pre不同
         ]
 
         device1 = Device("Switch-01", "file1.txt", routes1)
@@ -240,16 +240,16 @@ class TestBgpRouteComparator:
         """测试查找相同Destination的差异"""
         # 创建有相同Destination但不同Interface和Pre/Cost的设备
         routes1 = [
-            BgpRoute("10.0.0.0/24", "192.168.1.1", "GE0/0/1", 60, 0, RouteProtocol.BGP),
-            BgpRoute("10.0.0.0/24", "192.168.1.2", "GE0/0/2", 60, 10, RouteProtocol.BGP),
-            BgpRoute("10.0.1.0/24", "192.168.1.3", "GE0/0/3", 60, 0, RouteProtocol.BGP),
+            Route("10.0.0.0/24", "192.168.1.1", "GE0/0/1", 60, 0, RouteProtocol.BGP),
+            Route("10.0.0.0/24", "192.168.1.2", "GE0/0/2", 60, 10, RouteProtocol.BGP),
+            Route("10.0.1.0/24", "192.168.1.3", "GE0/0/3", 60, 0, RouteProtocol.BGP),
         ]
 
         routes2 = [
-            BgpRoute("10.0.0.0/24", "192.168.2.1", "GE0/0/1", 70, 0, RouteProtocol.BGP),  # Pre不同
+            Route("10.0.0.0/24", "192.168.2.1", "GE0/0/1", 70, 0, RouteProtocol.BGP),  # Pre不同
             # 缺少 GE0/0/2 接口
-            BgpRoute("10.0.1.0/24", "192.168.2.3", "GE0/0/3", 60, 0, RouteProtocol.BGP),  # 相同
-            BgpRoute("10.0.1.0/24", "192.168.2.4", "GE0/0/4", 60, 0, RouteProtocol.BGP),  # 额外接口
+            Route("10.0.1.0/24", "192.168.2.3", "GE0/0/3", 60, 0, RouteProtocol.BGP),  # 相同
+            Route("10.0.1.0/24", "192.168.2.4", "GE0/0/4", 60, 0, RouteProtocol.BGP),  # 额外接口
         ]
 
         device1 = Device("Switch-01", "file1.txt", routes1)
@@ -317,29 +317,29 @@ class TestBgpRouteComparator:
         """
         # 设备A有3条等价路由到10.0.0.0/24（3个不同的接口，Pre/Cost相同）
         routes_a = [
-            BgpRoute("10.0.0.0/24", "192.168.1.1", "GE0/0/1", 60, 0, RouteProtocol.BGP),
-            BgpRoute("10.0.0.0/24", "192.168.1.2", "GE0/0/2", 60, 0, RouteProtocol.BGP),  # 等价路径2
-            BgpRoute("10.0.0.0/24", "192.168.1.3", "GE0/0/3", 60, 0, RouteProtocol.BGP),  # 等价路径3
-            BgpRoute("10.0.1.0/24", "192.168.1.4", "GE0/0/4", 60, 0, RouteProtocol.IBGP),
+            Route("10.0.0.0/24", "192.168.1.1", "GE0/0/1", 60, 0, RouteProtocol.BGP),
+            Route("10.0.0.0/24", "192.168.1.2", "GE0/0/2", 60, 0, RouteProtocol.BGP),  # 等价路径2
+            Route("10.0.0.0/24", "192.168.1.3", "GE0/0/3", 60, 0, RouteProtocol.BGP),  # 等价路径3
+            Route("10.0.1.0/24", "192.168.1.4", "GE0/0/4", 60, 0, RouteProtocol.IBGP),
         ]
 
         # 设备B只有2条等价路由到10.0.0.0/24（少1条）
         routes_b = [
-            BgpRoute("10.0.0.0/24", "192.168.2.1", "GE0/0/1", 60, 0, RouteProtocol.BGP),
-            BgpRoute("10.0.0.0/24", "192.168.2.2", "GE0/0/2", 60, 0, RouteProtocol.BGP),  # 只有2条
-            BgpRoute("10.0.1.0/24", "192.168.2.4", "GE0/0/4", 60, 0, RouteProtocol.IBGP),
+            Route("10.0.0.0/24", "192.168.2.1", "GE0/0/1", 60, 0, RouteProtocol.BGP),
+            Route("10.0.0.0/24", "192.168.2.2", "GE0/0/2", 60, 0, RouteProtocol.BGP),  # 只有2条
+            Route("10.0.1.0/24", "192.168.2.4", "GE0/0/4", 60, 0, RouteProtocol.IBGP),
         ]
 
         # 设备C有2条等价路由，但Pre不同（非等价路由）
         routes_c = [
-            BgpRoute("10.0.0.0/24", "192.168.3.1", "GE0/0/1", 60, 0, RouteProtocol.BGP),
-            BgpRoute("10.0.0.0/24", "192.168.3.2", "GE0/0/2", 70, 0, RouteProtocol.BGP),  # Pre不同，不是等价
+            Route("10.0.0.0/24", "192.168.3.1", "GE0/0/1", 60, 0, RouteProtocol.BGP),
+            Route("10.0.0.0/24", "192.168.3.2", "GE0/0/2", 70, 0, RouteProtocol.BGP),  # Pre不同，不是等价
         ]
 
         # 设备D有2条等价路由，但Cost不同（非等价路由）
         routes_d = [
-            BgpRoute("10.0.0.0/24", "192.168.4.1", "GE0/0/1", 60, 0, RouteProtocol.BGP),
-            BgpRoute("10.0.0.0/24", "192.168.4.2", "GE0/0/2", 60, 50, RouteProtocol.BGP),  # Cost不同，不是等价
+            Route("10.0.0.0/24", "192.168.4.1", "GE0/0/1", 60, 0, RouteProtocol.BGP),
+            Route("10.0.0.0/24", "192.168.4.2", "GE0/0/2", 60, 50, RouteProtocol.BGP),  # Cost不同，不是等价
         ]
 
         device_a = Device("Device-A", "a.txt", routes_a)
@@ -379,14 +379,14 @@ class TestBgpRouteComparator:
         """测试接口数量相同但名称不同 → INTERFACE_MISMATCH"""
         # 设备A: 10.0.0.0/24 有2条ECMP (Eth-Trunk1, Eth-Trunk2)
         routes_a = [
-            BgpRoute("10.0.0.0/24", "192.168.1.1", "Eth-Trunk1", 60, 0, RouteProtocol.BGP),
-            BgpRoute("10.0.0.0/24", "192.168.1.2", "Eth-Trunk2", 60, 0, RouteProtocol.BGP),
+            Route("10.0.0.0/24", "192.168.1.1", "Eth-Trunk1", 60, 0, RouteProtocol.BGP),
+            Route("10.0.0.0/24", "192.168.1.2", "Eth-Trunk2", 60, 0, RouteProtocol.BGP),
         ]
 
         # 设备B: 10.0.0.0/24 也有2条ECMP，但接口不同 (Eth-Trunk3, Eth-Trunk4)
         routes_b = [
-            BgpRoute("10.0.0.0/24", "192.168.2.1", "Eth-Trunk3", 60, 0, RouteProtocol.BGP),
-            BgpRoute("10.0.0.0/24", "192.168.2.2", "Eth-Trunk4", 60, 0, RouteProtocol.BGP),
+            Route("10.0.0.0/24", "192.168.2.1", "Eth-Trunk3", 60, 0, RouteProtocol.BGP),
+            Route("10.0.0.0/24", "192.168.2.2", "Eth-Trunk4", 60, 0, RouteProtocol.BGP),
         ]
 
         device_a = Device("Device-A", "a.txt", routes_a)
@@ -412,16 +412,16 @@ class TestBgpRouteComparator:
     def test_ecmp_multiple_device_comparison(self):
         """测试多设备场景下的等价路由比较"""
         routes1 = [
-            BgpRoute("10.0.0.0/24", "192.168.1.1", "GE0/0/1", 60, 0, RouteProtocol.BGP),
-            BgpRoute("10.0.0.0/24", "192.168.1.2", "GE0/0/2", 60, 0, RouteProtocol.BGP),
+            Route("10.0.0.0/24", "192.168.1.1", "GE0/0/1", 60, 0, RouteProtocol.BGP),
+            Route("10.0.0.0/24", "192.168.1.2", "GE0/0/2", 60, 0, RouteProtocol.BGP),
         ]
         routes2 = [
-            BgpRoute("10.0.0.0/24", "192.168.2.1", "GE0/0/1", 60, 0, RouteProtocol.BGP),
+            Route("10.0.0.0/24", "192.168.2.1", "GE0/0/1", 60, 0, RouteProtocol.BGP),
         ]
         routes3 = [
-            BgpRoute("10.0.0.0/24", "192.168.3.1", "GE0/0/1", 60, 0, RouteProtocol.BGP),
-            BgpRoute("10.0.0.0/24", "192.168.3.2", "GE0/0/2", 60, 0, RouteProtocol.BGP),
-            BgpRoute("10.0.0.0/24", "192.168.3.3", "GE0/0/3", 60, 0, RouteProtocol.BGP),
+            Route("10.0.0.0/24", "192.168.3.1", "GE0/0/1", 60, 0, RouteProtocol.BGP),
+            Route("10.0.0.0/24", "192.168.3.2", "GE0/0/2", 60, 0, RouteProtocol.BGP),
+            Route("10.0.0.0/24", "192.168.3.3", "GE0/0/3", 60, 0, RouteProtocol.BGP),
         ]
 
         device1 = Device("Device-1", "f1.txt", routes1)
@@ -456,12 +456,12 @@ class TestOptimizedBgpComparator:
     def sample_devices(self):
         """创建示例设备"""
         routes1 = [
-            BgpRoute("10.0.0.0/24", "192.168.1.1", "GE0/0/1", 60, 0, RouteProtocol.BGP),
-            BgpRoute("10.0.1.0/24", "192.168.1.2", "GE0/0/2", 60, 0, RouteProtocol.BGP),
+            Route("10.0.0.0/24", "192.168.1.1", "GE0/0/1", 60, 0, RouteProtocol.BGP),
+            Route("10.0.1.0/24", "192.168.1.2", "GE0/0/2", 60, 0, RouteProtocol.BGP),
         ]
         routes2 = [
-            BgpRoute("10.0.0.0/24", "192.168.2.1", "GE0/0/1", 60, 0, RouteProtocol.BGP),
-            BgpRoute("10.0.2.0/24", "192.168.2.2", "GE0/0/2", 60, 0, RouteProtocol.BGP),
+            Route("10.0.0.0/24", "192.168.2.1", "GE0/0/1", 60, 0, RouteProtocol.BGP),
+            Route("10.0.2.0/24", "192.168.2.2", "GE0/0/2", 60, 0, RouteProtocol.BGP),
         ]
 
         device1 = Device("Switch-01", "file1.txt", routes1)

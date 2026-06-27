@@ -8,10 +8,17 @@ from collections import namedtuple
 
 
 class RouteProtocol(Enum):
-    """BGP路由协议类型"""
+    """路由协议类型"""
     BGP = "BGP"
     IBGP = "IBGP"
     EBGP = "EBGP"
+    OSPF = "OSPF"
+    DIRECT = "Direct"
+    STATIC = "Static"
+    ISIS = "IS-IS"
+    RIP = "RIP"
+    UNR = "UNR"
+    UNKNOWN = "UNKNOWN"
 
 
 # 紧凑的路由元组，用于内存优化
@@ -19,8 +26,8 @@ RouteTuple = namedtuple('RouteTuple', ['destination', 'interface', 'pre', 'cost'
 
 
 @dataclass(frozen=True, eq=True)
-class BgpRoute:
-    """BGP路由条目，使用frozen dataclass确保可哈希"""
+class Route:
+    """路由条目，使用frozen dataclass确保可哈希"""
     destination: str
     next_hop: str
     interface: str
@@ -47,7 +54,7 @@ class BgpRoute:
         return (self.destination, self.interface, self.pre, self.cost, self.protocol)
 
     @classmethod
-    def from_tuple(cls, route_tuple: RouteTuple, next_hop: str = "") -> 'BgpRoute':
+    def from_tuple(cls, route_tuple: RouteTuple, next_hop: str = "") -> 'Route':
         protocol_map = {p.value: p for p in RouteProtocol}
         protocol = protocol_map.get(route_tuple.protocol, RouteProtocol.BGP)
         return cls(
@@ -65,7 +72,7 @@ class Device:
     """网络设备"""
     name: str
     filename: str
-    routes: List[BgpRoute]
+    routes: List[Route]
     interface_peer_map: Dict[str, str] = field(default_factory=dict)
     route_tuples: Set[RouteTuple] = field(default_factory=set, init=False)
 
@@ -79,13 +86,13 @@ class Device:
     def has_interface_descriptions(self) -> bool:
         return len(self.interface_peer_map) > 0
 
-    def get_routes_by_destination(self) -> Dict[str, List[BgpRoute]]:
+    def get_routes_by_destination(self) -> Dict[str, List[Route]]:
         grouped = {}
         for route in self.routes:
             grouped.setdefault(route.destination, []).append(route)
         return grouped
 
-    def get_routes_by_interface(self) -> Dict[str, List[BgpRoute]]:
+    def get_routes_by_interface(self) -> Dict[str, List[Route]]:
         grouped = {}
         for route in self.routes:
             grouped.setdefault(route.interface, []).append(route)
@@ -94,7 +101,7 @@ class Device:
     def has_route(self, route_tuple: RouteTuple) -> bool:
         return route_tuple in self.route_tuples
 
-    def find_route(self, destination: str, interface: str) -> Optional[BgpRoute]:
+    def find_route(self, destination: str, interface: str) -> Optional[Route]:
         for route in self.routes:
             if route.destination == destination and route.interface == interface:
                 return route
@@ -113,7 +120,7 @@ class Interface:
     peer_source: str = "none"     # 数据来源："description" / "lldp" / "none"
 
 
-def create_route_index(routes: List[BgpRoute]) -> Dict[str, Dict[str, BgpRoute]]:
+def create_route_index(routes: List[Route]) -> Dict[str, Dict[str, Route]]:
     """创建两层索引：destination -> interface -> route"""
     index = {}
     for route in routes:

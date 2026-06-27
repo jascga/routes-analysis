@@ -6,7 +6,7 @@ from routesanalysis.analyzer import (
     is_well_formed_peer_name,
     MultiGroupAnalyzer,
 )
-from routesanalysis.models import Device, BgpRoute, RouteProtocol
+from routesanalysis.models import Device, Route, RouteProtocol
 
 
 # ---------------------------------------------------------------------------
@@ -106,8 +106,8 @@ class TestWellFormed:
 # ---------------------------------------------------------------------------
 
 def _make_route(dest: str, intf: str, pre: int = 60, cost: int = 0,
-                proto: RouteProtocol = RouteProtocol.BGP) -> BgpRoute:
-    return BgpRoute(
+                proto: RouteProtocol = RouteProtocol.BGP) -> Route:
+    return Route(
         destination=dest, next_hop="1.1.1.1",
         interface=intf, pre=pre, cost=cost, protocol=proto,
     )

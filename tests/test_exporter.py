@@ -12,7 +12,7 @@ from routesanalysis.export.comparison import (
     ExcelExporter, export_comparison_result, export_differences_to_excel
 )
 from routesanalysis.models import (
-    Device, BgpRoute, RouteProtocol,
+    Device, Route, RouteProtocol,
     RouteDifference, DifferenceType, ComparisonResult
 )
 
@@ -25,7 +25,7 @@ class TestExcelExporter:
         """创建示例比较结果"""
         # 创建示例路由
         routes = [
-            BgpRoute(
+            Route(
                 destination="10.0.0.0/24",
                 next_hop="192.168.1.1",
                 interface="GigabitEthernet0/0/1",
@@ -33,7 +33,7 @@ class TestExcelExporter:
                 cost=0,
                 protocol=RouteProtocol.BGP
             ),
-            BgpRoute(
+            Route(
                 destination="10.0.1.0/24",
                 next_hop="192.168.1.2",
                 interface="GigabitEthernet0/0/2",
@@ -166,7 +166,7 @@ class TestExcelExporter:
         """测试导出无差异的结果"""
         # 创建无差异的比较结果
         routes = [
-            BgpRoute(
+            Route(
                 destination="10.0.0.0/24",
                 next_hop="192.168.1.1",
                 interface="GigabitEthernet0/0/1",

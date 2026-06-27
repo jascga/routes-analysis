@@ -7,7 +7,7 @@ from typing import Dict, List, Optional, Tuple
 
 import textfsm
 
-from ..models import BgpRoute, RouteProtocol
+from ..models import Route, RouteProtocol
 from .core import extract_device_name
 
 
@@ -23,7 +23,7 @@ class TextfsmParser:
             return Path(sys._MEIPASS) / "routesanalysis" / "templates"
         return Path(__file__).parent.parent / "templates"
 
-    def parse_bgp_routes(self, content: str) -> Optional[List[BgpRoute]]:
+    def parse_bgp_routes(self, content: str) -> Optional[List[Route]]:
         """用 TextFSM 模板解析 BGP 路由表，失败返回 None"""
         try:
             template_path = self._template_dir / "huawei_bgp_routing_table.textfsm"
@@ -49,7 +49,7 @@ class TextfsmParser:
                     cost = 0
                 next_hop = entry[4] if len(entry) > 4 and entry[4] else ""
                 interface = entry[5] if len(entry) > 5 and entry[5] else ""
-                routes.append(BgpRoute(
+                routes.append(Route(
                     destination=dest, next_hop=next_hop,
                     interface=interface, pre=pre, cost=cost,
                     protocol=route_proto,

@@ -11,7 +11,7 @@ from concurrent.futures import ProcessPoolExecutor, as_completed
 import sys
 
 from routesanalysis.models import (
-    Device, BgpRoute, RouteDifference, DifferenceType,
+    Device, Route, RouteDifference, DifferenceType,
     ComparisonResult, RouteTuple, create_route_index
 )
 
