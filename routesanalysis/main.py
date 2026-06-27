@@ -321,9 +321,6 @@ def compare(files: tuple, baseline: int, output: str, encoding: str,
         click.echo(f"错误：基准索引 {baseline} 超出范围 (0-{len(files)-1})", err=True)
         sys.exit(2)
 
-from routesanalysis.parsing import parse_device_file, BgpRouteParser
-    from routesanalysis.comparator import BgpRouteComparator
-
     click.echo(f"→ 基准文件: {files[baseline]} (索引 {baseline})")
     click.echo(f"→ 比较文件: {len(files) - 1} 个")
     click.echo()
