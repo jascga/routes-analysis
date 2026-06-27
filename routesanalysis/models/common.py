@@ -73,18 +73,22 @@ class Device:
     name: str
     filename: str
     routes: List[Route]
-    interface_peer_map: Dict[str, str] = field(default_factory=dict)
+    interfaces: List[Interface] = field(default_factory=list)
     route_tuples: Set[RouteTuple] = field(default_factory=set, init=False)
 
     def __post_init__(self):
         self.route_tuples = {route.to_tuple() for route in self.routes}
         self.routes.sort(key=lambda r: (r.destination, r.interface))
 
-    def get_peer_device(self, interface: str) -> str:
-        return self.interface_peer_map.get(interface, interface)
+    def get_peer_device(self, interface_name: str) -> str:
+        """获取接口对应的对端设备名，若未知则返回接口名本身"""
+        for intf in self.interfaces:
+            if intf.name == interface_name and intf.peer_device:
+                return intf.peer_device
+        return interface_name
 
     def has_interface_descriptions(self) -> bool:
-        return len(self.interface_peer_map) > 0
+        return any(intf.peer_device for intf in self.interfaces)
 
     def get_routes_by_destination(self) -> Dict[str, List[Route]]:
         grouped = {}

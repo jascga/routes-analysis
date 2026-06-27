@@ -73,7 +73,7 @@ def multi_group(files: tuple, output: str | None, min_groups: int,
             continue
 
         click.echo(f"  设备名: {device.name} | 路由: {len(device.routes)} | "
-                   f"接口描述: {len(device.interface_peer_map)} 条")
+                   f"接口描述: {len(device.interfaces)} 条")
 
         if not device.has_interface_descriptions():
             click.echo("  ⚠️  未发现 'display interface description' 输出，"
@@ -141,11 +141,11 @@ def inspect(filepath: str, encoding: str):
     click.echo(f"设备名:     {device.name}")
     click.echo(f"源文件:     {device.filename}")
     click.echo(f"路由总数:   {len(device.routes)}")
-    click.echo(f"接口描述:   {len(device.interface_peer_map)} 条")
-    if device.interface_peer_map:
+    click.echo(f"接口描述:   {len(device.interfaces)} 条")
+    if device.interfaces:
         click.echo("接口→对端 (前 10):")
-        for i, (intf, peer) in enumerate(list(device.interface_peer_map.items())[:10]):
-            click.echo(f"  {intf:25s}  →  {peer}")
+        for intf in device.interfaces[:10]:
+            click.echo(f"  {intf.name:25s}  →  {intf.peer_device}")
 
 
 def main():

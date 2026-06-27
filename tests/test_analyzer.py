@@ -6,7 +6,7 @@ from routesanalysis.analyzer import (
     is_well_formed_peer_name,
     MultiGroupAnalyzer,
 )
-from routesanalysis.models import Device, Route, RouteProtocol
+from routesanalysis.models import Device, Route, RouteProtocol, Interface
 
 
 # ---------------------------------------------------------------------------
@@ -114,7 +114,11 @@ def _make_route(dest: str, intf: str, pre: int = 60, cost: int = 0,
 
 
 def _make_device(name: str, routes, peer_map) -> Device:
-    return Device(name=name, filename=f"{name}.txt", routes=routes, interface_peer_map=peer_map)
+    interfaces = [
+        Interface(name=intf, peer_device=peer, peer_source="description")
+        for intf, peer in peer_map.items()
+    ]
+    return Device(name=name, filename=f"{name}.txt", routes=routes, interfaces=interfaces)
 
 
 class TestMultiGroupAnalyzer:

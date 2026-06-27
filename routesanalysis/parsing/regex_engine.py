@@ -6,7 +6,7 @@ import logging
 from pathlib import Path
 from typing import Dict, List, Optional, Iterator, Tuple
 
-from ..models import Route, RouteProtocol, Device
+from ..models import Route, RouteProtocol, Device, Interface
 from .core import extract_device_name, read_file_lines, normalize_path, FileScanResult
 
 logger = logging.getLogger(__name__)
@@ -104,7 +104,7 @@ class RegexParser:
             name=device_name,
             filename=self.current_file or "unknown",
             routes=routes,
-            interface_peer_map=interface_peer_map,
+            interfaces=interfaces,
         )
 
     def parse_files_streaming(self, filepaths: List[str], encoding: str = 'auto') -> Iterator[Device]:
@@ -182,25 +182,23 @@ class RegexParser:
         return RouteProtocol.BGP
 
     @staticmethod
-    def _extract_peer_device(description: str) -> Optional[str]:
-        """从接口描述中提取对端设备名，描述格式：to_<对端设备名>_<接口名>"""
+    def _extract_peer_from_desc(description: str) -> Tuple[str, str]:
+        """从接口描述中提取对端设备名和对端接口名，格式：to_<对端设备名>_<对端接口名>"""
         if not description:
-            return None
+            return ("", "")
         desc = description.strip()
         if desc.lower().startswith("to_"):
-            peer = desc[3:]
-            last_underscore = peer.rfind('_')
-            if last_underscore > 0:
-                peer = peer[:last_underscore]
-        elif "_" in desc:
-            last_underscore = desc.rfind('_')
-            if last_underscore > 0:
-                peer = desc[:last_underscore]
-            else:
-                peer = desc
+            peer_part = desc[3:]
         else:
-            peer = desc
-        return peer.strip() if peer else None
+            peer_part = desc
+        last_underscore = peer_part.rfind('_')
+        if last_underscore > 0:
+            peer_device = peer_part[:last_underscore]
+            peer_interface = peer_part[last_underscore + 1:]
+        else:
+            peer_device = peer_part
+            peer_interface = ""
+        return (peer_device.strip(), peer_interface.strip())
 
     @staticmethod
     def validate_file_format(filepath: str) -> Tuple[bool, str]:

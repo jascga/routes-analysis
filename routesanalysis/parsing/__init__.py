@@ -36,7 +36,7 @@ def parse_bgp_file(filepath: str, encoding: str = 'auto') -> Device:
 
     # 1. TextFSM 优先
     routes = _textfsm_parser.parse_bgp_routes(content)
-    interface_peer_map = _textfsm_parser.parse_interface_descriptions(content)
+    interfaces = _textfsm_parser.parse_interface_descriptions(content)
 
     if routes is not None:
         logger.debug("TextFSM 解析成功")
@@ -44,19 +44,19 @@ def parse_bgp_file(filepath: str, encoding: str = 'auto') -> Device:
             name=device_name or Path(filepath).stem,
             filename=str(Path(filepath).resolve()),
             routes=routes,
-            interface_peer_map=interface_peer_map,
+            interfaces=interfaces,
         )
         logger.info(f"解析完成: 设备={device.name}, 路由数={len(device.routes)}")
-        if interface_peer_map:
-            logger.info(f"解析到 {len(interface_peer_map)} 条接口描述")
+        if interfaces:
+            logger.info(f"解析到 {len(interfaces)} 条接口描述")
         return device
 
     # 2. TextFSM 失败，回退到正则
     logger.debug("TextFSM 解析失败，回退到正则解析")
     device = _regex_parser.parse_file(filepath, encoding)
     logger.info(f"解析完成: 设备={device.name}, 路由数={len(device.routes)}")
-    if device.interface_peer_map:
-        logger.info(f"解析到 {len(device.interface_peer_map)} 条接口描述")
+    if device.interfaces:
+        logger.info(f"解析到 {len(device.interfaces)} 条接口描述")
     return device
 
 
@@ -87,13 +87,13 @@ class BgpRouteParser:
     def parse_lines(self, lines: List[str], device_name: str = "unknown") -> Device:
         content = "\n".join(lines)
         routes = _textfsm_parser.parse_bgp_routes(content)
-        interface_peer_map = _textfsm_parser.parse_interface_descriptions(content)
+        interfaces = _textfsm_parser.parse_interface_descriptions(content)
         if routes is not None:
             return Device(
                 name=device_name,
                 filename="",
                 routes=routes,
-                interface_peer_map=interface_peer_map,
+                interfaces=interfaces,
             )
         return _regex_parser.parse_lines(lines, device_name)
 

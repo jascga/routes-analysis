@@ -7,7 +7,7 @@ from typing import Dict, List, Optional, Tuple
 
 import textfsm
 
-from ..models import Route, RouteProtocol
+from ..models import Route, RouteProtocol, Interface
 from .core import extract_device_name
 
 
@@ -58,45 +58,51 @@ class TextfsmParser:
         except Exception:
             return None
 
-    def parse_interface_descriptions(self, content: str) -> Dict[str, str]:
-        """用 TextFSM 模板解析接口描述，失败返回空字典"""
-        result: Dict[str, str] = {}
+    def parse_interface_descriptions(self, content: str) -> List[Interface]:
+        """用 TextFSM 模板解析接口描述，失败返回空列表"""
+        result: List[Interface] = []
         try:
             template_path = self._template_dir / "huawei_interface_description.textfsm"
             with open(template_path, encoding='utf8') as f:
                 fsm = textfsm.TextFSM(f)
             parsed = fsm.ParseText(content)
             for entry in parsed:
-                intf = entry[0]
+                intf_name = entry[0]
+                status = entry[1]
+                protocol_status = entry[2]
                 desc = entry[3].strip() if len(entry) > 3 else ""
-                peer = self._extract_peer_device(desc)
-                if peer:
-                    result[intf] = peer
+                peer_device, peer_interface = self._extract_peer_from_desc(desc)
+                result.append(Interface(
+                    name=intf_name,
+                    description=desc,
+                    status=status,
+                    protocol_status=protocol_status,
+                    peer_device=peer_device,
+                    peer_interface=peer_interface,
+                    peer_source="description" if peer_device else "none",
+                ))
         except Exception:
             pass
         return result
 
     @staticmethod
-    def _extract_peer_device(description: str) -> Optional[str]:
-        """从接口描述中提取对端设备名
-        描述格式：to_<对端设备名>_<接口名> 或 <对端设备名>_<接口名>
+    def _extract_peer_from_desc(description: str) -> Tuple[str, str]:
+        """从接口描述中提取对端设备名和对端接口名
+        描述格式：to_<对端设备名>_<对端接口名>
         """
         if not description:
-            return None
+            return ("", "")
         desc = description.strip()
         if desc.lower().startswith("to_"):
-            # 去掉 to_，取最后一个 _ 之前的部分（去掉接口名）
-            peer = desc[3:]
-            last_underscore = peer.rfind('_')
-            if last_underscore > 0:
-                peer = peer[:last_underscore]
-        elif "_" in desc:
-            # 没有 to_ 前缀，取最后一个 _ 之前的部分
-            last_underscore = desc.rfind('_')
-            if last_underscore > 0:
-                peer = desc[:last_underscore]
-            else:
-                peer = desc
+            peer_part = desc[3:]
         else:
-            peer = desc
-        return peer.strip() if peer else None
+            peer_part = desc
+        # 最后一个 _ 分隔：之前是对端设备名，之后是对端接口名
+        last_underscore = peer_part.rfind('_')
+        if last_underscore > 0:
+            peer_device = peer_part[:last_underscore]
+            peer_interface = peer_part[last_underscore + 1:]
+        else:
+            peer_device = peer_part
+            peer_interface = ""
+        return (peer_device.strip(), peer_interface.strip())
